@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "identifier": "com.edomatch.nearclip.dev2",
+  "identifier": "com.nearclip.dev2",
   "productName": "nearclip-dev2",
   "build": {
     "beforeDevCommand": "pnpm vite --port 1422 --strictPort",

@@ -45,7 +45,7 @@ pnpm dev:2
 
 `pnpm dev:2` uses `src-tauri/tauri.dev2.conf.json`, which overrides the first instance so both can coexist:
 
-- a second bundle identifier, `com.edomatch.nearclip.dev2`, so it gets its own app data directory (identity, pairings, settings, history);
+- a second bundle identifier, `com.nearclip.dev2`, so it gets its own app data directory (identity, pairings, settings, history);
 - a separate Vite port, 1422;
 - a separate Cargo target directory, `src-tauri/target-2`, so the two builds do not lock each other;
 - the TCP listener finds port 47821 already taken and falls back to an ephemeral port, which is advertised through mDNS.
@@ -80,7 +80,7 @@ Code signing and notarization are not configured yet. On macOS, users need to ri
 - The shared secret is expanded with HKDF bound to the full pairing transcript (both identity keys, both ephemeral keys, both nonces), and each side signs that transcript with its Ed25519 identity key so the pairing is tied to the identity that gets stored.
 - A 6-digit short authentication string (SAS) is derived from that transcript and displayed on both screens. Pairing only completes when both users confirm the codes match, which defeats an active man-in-the-middle on the local network.
 - Every connection after pairing derives a fresh per-connection session key from the paired secret. Payloads are encrypted with AES-256-GCM.
-- Pairing keys are currently stored in plaintext JSON under the app data directory (macOS: `~/Library/Application Support/com.edomatch.nearclip/`). Moving them to the OS keychain is a planned follow-up.
+- Pairing keys are currently stored in plaintext JSON under the app data directory (macOS: `~/Library/Application Support/com.nearclip/`). Moving them to the OS keychain is a planned follow-up.
 
 ## Troubleshooting
 

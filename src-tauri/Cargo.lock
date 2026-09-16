@@ -638,38 +638,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "nearclip"
-version = "0.1.0"
-dependencies = [
- "aes-gcm",
- "base64 0.23.1",
- "ed25519-dalek",
- "getrandom 0.4.3",
- "hex",
- "hkdf",
- "hostname",
- "if-addrs",
- "log",
- "mdns-sd",
- "serde",
- "serde_json",
- "sha2 0.11.0",
- "tauri",
- "tauri-build",
- "tauri-plugin-autostart",
- "tauri-plugin-clipboard-manager",
- "tauri-plugin-log",
- "tauri-plugin-notification",
- "tauri-plugin-opener",
- "tauri-plugin-single-instance",
- "tauri-plugin-store",
- "thiserror 2.0.20",
- "tokio",
- "uuid",
- "x25519-dalek",
-]
-
-[[package]]
 name = "core-foundation"
 version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2640,6 +2608,38 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ee6cda3051665f1fb8d9e08fc35c96d5a244fb1be711a03b71118828afc9a873"
 dependencies = [
  "jni-sys 0.3.1",
+]
+
+[[package]]
+name = "nearclip"
+version = "0.1.0"
+dependencies = [
+ "aes-gcm",
+ "base64 0.23.1",
+ "ed25519-dalek",
+ "getrandom 0.4.3",
+ "hex",
+ "hkdf",
+ "hostname",
+ "if-addrs",
+ "log",
+ "mdns-sd",
+ "serde",
+ "serde_json",
+ "sha2 0.11.0",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-autostart",
+ "tauri-plugin-clipboard-manager",
+ "tauri-plugin-log",
+ "tauri-plugin-notification",
+ "tauri-plugin-opener",
+ "tauri-plugin-single-instance",
+ "tauri-plugin-store",
+ "thiserror 2.0.20",
+ "tokio",
+ "uuid",
+ "x25519-dalek",
 ]
 
 [[package]]

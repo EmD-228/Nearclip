@@ -1,4 +1,4 @@
-package com.edomatch.nearclip
+package com.nearclip
 
 import android.content.Context
 import android.net.wifi.WifiManager
