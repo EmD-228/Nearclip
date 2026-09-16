@@ -24,7 +24,7 @@ use crate::error::{AppError, Result};
 use crate::identity::{device_id_from_pk, verify};
 use crate::protocol::{
     b64d_array, b64e, decrypt_wire, encrypt_plain, error_frame, read_frame, write_frame, Plain,
-    Wire, PROTO_VERSION,
+    Wire, DEFAULT_PORT, PROTO_VERSION,
 };
 use crate::state::{now_ms, save_peers, AppState, PeerRecord};
 use crate::{discovery, transport, tray};
@@ -80,17 +80,45 @@ pub fn start(app: AppHandle, device_id: String) -> Result<()> {
         .get(&device_id)
         .map(|d| d.name.clone())
         .unwrap_or_else(|| "Unknown device".to_string());
+    spawn_initiator(app, device_id.clone(), peer_name, Some(device_id), addr)
+}
 
+/// Starts pairing with a device mDNS cannot see, given "ip" or "ip:port".
+/// Until the peer answers, the typed address stands in for its device id in
+/// the pairing events; `pairing-code` then carries the real id and name.
+pub fn start_by_address(app: AppHandle, addr_str: &str) -> Result<()> {
+    let addr_str = addr_str.trim();
+    let addr = parse_peer_addr(addr_str)?;
+    spawn_initiator(app, addr_str.to_string(), addr_str.to_string(), None, addr)
+}
+
+/// "ip:port" or bare "ip" (default port).
+fn parse_peer_addr(s: &str) -> Result<SocketAddr> {
+    s.parse::<SocketAddr>()
+        .or_else(|_| s.parse::<std::net::IpAddr>().map(|ip| SocketAddr::new(ip, DEFAULT_PORT)))
+        .map_err(|_| AppError::msg("Enter an address like 192.168.1.20 or 192.168.1.20:47821"))
+}
+
+/// Registers the pairing handle under `key` and runs the initiator flow.
+/// `expected_id` pins the peer identity when it is already known from mDNS.
+fn spawn_initiator(
+    app: AppHandle,
+    mut key: String,
+    peer_name: String,
+    expected_id: Option<String>,
+    addr: SocketAddr,
+) -> Result<()> {
+    let state = app.state::<AppState>();
     let (confirm_tx, confirm_rx) = mpsc::channel(1);
     {
         let mut pairings = state.pairings.lock().unwrap();
-        if pairings.contains_key(&device_id) {
+        if pairings.contains_key(&key) {
             return Err(AppError::msg(
                 "A pairing with this device is already in progress",
             ));
         }
         pairings.insert(
-            device_id.clone(),
+            key.clone(),
             PairingHandle {
                 peer_name,
                 code: None,
@@ -102,11 +130,11 @@ pub fn start(app: AppHandle, device_id: String) -> Result<()> {
     tauri::async_runtime::spawn(async move {
         let res = tokio::time::timeout(
             PAIRING_TIMEOUT,
-            run_initiator(&app, &device_id, addr, confirm_rx),
+            run_initiator(&app, &mut key, expected_id.as_deref(), addr, confirm_rx),
         )
         .await
         .unwrap_or(Err(AppError::Timeout));
-        finish(&app, &device_id, res);
+        finish(&app, &key, res);
     });
     Ok(())
 }
@@ -210,9 +238,12 @@ pub fn confirm(app: &AppHandle, device_id: &str, accepted: bool) -> Result<()> {
         .map_err(|_| AppError::msg("Pairing already confirmed"))
 }
 
+/// `key` is the pairing handle key: the peer's device id when known, otherwise
+/// the typed address. It is switched to the real device id once the peer answers.
 async fn run_initiator(
     app: &AppHandle,
-    device_id: &str,
+    key: &mut String,
+    expected_id: Option<&str>,
     addr: SocketAddr,
     confirm_rx: mpsc::Receiver<bool>,
 ) -> Result<()> {
@@ -260,7 +291,7 @@ async fn run_initiator(
             )))
         }
     };
-    if peer_id != device_id || device_id_from_pk(&peer_pk) != peer_id {
+    if expected_id.is_some_and(|id| id != peer_id) || device_id_from_pk(&peer_pk) != peer_id {
         return Err(AppError::Crypto);
     }
 
@@ -292,7 +323,13 @@ async fn run_initiator(
         .to_bytes();
     let material = derive_pairing(&shared, &transcript);
 
-    publish_code(app, device_id, &peer_name, &material.sas, Role::Initiator);
+    // Switch to the real id right before the UI learns it, so there is no
+    // window where events carry an id the frontend does not know yet.
+    if *key != peer_id {
+        rekey(app, key, &peer_id)?;
+        *key = peer_id.clone();
+    }
+    publish_code(app, key, &peer_name, &material.sas, Role::Initiator);
     confirm_phase(stream, confirm_rx, &material.pairing_key).await?;
 
     save_peer(
@@ -460,6 +497,23 @@ fn save_peer(app: &AppHandle, peer: PeerRecord) {
     }
 }
 
+/// Moves an in-flight pairing handle from a provisional key (typed address)
+/// to the peer's real device id, so `confirm` finds it under the id the UI has.
+/// Refuses to clobber another pairing already running under that id.
+fn rekey(app: &AppHandle, from: &str, to: &str) -> Result<()> {
+    let state = app.state::<AppState>();
+    let mut pairings = state.pairings.lock().unwrap();
+    if pairings.contains_key(to) {
+        return Err(AppError::msg(
+            "A pairing with this device is already in progress",
+        ));
+    }
+    if let Some(handle) = pairings.remove(from) {
+        pairings.insert(to.to_string(), handle);
+    }
+    Ok(())
+}
+
 fn finish(app: &AppHandle, device_id: &str, res: Result<()>) {
     let state = app.state::<AppState>();
     state.pairings.lock().unwrap().remove(device_id);
@@ -589,6 +643,20 @@ mod tests {
             .diffie_hellman(&PublicKey::from(eph_a))
             .to_bytes();
         Ok(derive_pairing(&shared, &t))
+    }
+
+    #[test]
+    fn parse_peer_addr_accepts_ip_with_or_without_port() {
+        assert_eq!(
+            parse_peer_addr("192.168.1.20").unwrap().to_string(),
+            format!("192.168.1.20:{DEFAULT_PORT}")
+        );
+        assert_eq!(
+            parse_peer_addr("192.168.1.20:5000").unwrap().to_string(),
+            "192.168.1.20:5000"
+        );
+        assert!(parse_peer_addr("not an address").is_err());
+        assert!(parse_peer_addr("192.168.1.20:99999").is_err());
     }
 
     #[tokio::test]

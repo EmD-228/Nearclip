@@ -155,6 +155,8 @@ pub fn run() {
             commands::unpair,
             commands::send_text,
             commands::copy_to_clipboard,
+            commands::read_clipboard,
+            commands::pair_by_address,
             commands::get_history,
             commands::clear_history,
             commands::get_settings,

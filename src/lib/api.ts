@@ -32,6 +32,10 @@ export const api = {
   sendText: (target: SendTarget, text: string) =>
     invoke<SendResult[]>("send_text", { target, text }),
   copyToClipboard: (text: string) => invoke<void>("copy_to_clipboard", { text }),
+  /** Current clipboard text ("" when empty or not text). On mobile only works while the app is in the foreground. */
+  readClipboard: () => invoke<string>("read_clipboard"),
+  /** Pair with a device that mDNS cannot see, e.g. "192.168.1.20:47821" (port optional). Progress via the pairing events. */
+  pairByAddress: (addr: string) => invoke<void>("pair_by_address", { addr }),
 
   getHistory: () => invoke<HistoryItem[]>("get_history"),
   clearHistory: () => invoke<void>("clear_history"),

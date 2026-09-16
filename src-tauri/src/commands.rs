@@ -5,6 +5,8 @@ use std::sync::atomic::Ordering;
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager, State};
 
+use tauri_plugin_clipboard_manager::ClipboardExt;
+
 use crate::clipboard::ClipboardCmd;
 use crate::error::{AppError, Result};
 use crate::protocol::MAX_TEXT_BYTES;
@@ -110,6 +112,18 @@ pub fn copy_to_clipboard(state: State<'_, AppState>, text: String) -> Result<()>
         .clipboard_tx
         .send(ClipboardCmd::Write(text))
         .map_err(|_| AppError::msg("Clipboard is unavailable"))
+}
+
+/// Current clipboard text, or an empty string when the clipboard is empty or
+/// holds something that is not text.
+#[tauri::command]
+pub fn read_clipboard(app: AppHandle) -> String {
+    app.clipboard().read_text().unwrap_or_default()
+}
+
+#[tauri::command]
+pub fn pair_by_address(app: AppHandle, addr: String) -> Result<()> {
+    pairing::start_by_address(app, &addr)
 }
 
 #[tauri::command]

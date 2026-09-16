@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { Eraser, Send } from "@lucide/svelte";
+  import { ClipboardPaste, Eraser, Send } from "@lucide/svelte";
   import { api } from "../api";
   import { plural } from "../format";
   import { devices } from "../stores/devices.svelte";
@@ -74,6 +74,24 @@
     text = "";
     textarea?.focus();
   }
+
+  async function paste() {
+    let clip: string;
+    try {
+      clip = await api.readClipboard();
+    } catch (err) {
+      toasts.error(`Could not read the clipboard: ${errorMessage(err)}`);
+      return;
+    }
+    if (clip === "") {
+      toasts.info("Clipboard is empty");
+      return;
+    }
+    if (text.length === 0) text = clip;
+    else text = text.endsWith("\n") ? text + clip : `${text}\n${clip}`;
+    // Same rule as autofocus: focusing on phones would pop the keyboard.
+    if (settings.isDesktop) textarea?.focus();
+  }
 </script>
 
 <!--
@@ -116,9 +134,20 @@
 
     <div class="hidden flex-1 sm:block"></div>
 
-    <button type="button" class={btn.ghost} onclick={clear} disabled={text.length === 0}>
+    <!-- Phones: icon-only Clear, then Paste and Send share the row equally. -->
+    <button
+      type="button"
+      class={btn.ghost}
+      onclick={clear}
+      disabled={text.length === 0}
+      aria-label="Clear"
+    >
       <Eraser class="size-4" aria-hidden="true" />
-      Clear
+      <span class="hidden sm:inline">Clear</span>
+    </button>
+    <button type="button" class="{btn.secondary} flex-1 sm:flex-none" onclick={paste}>
+      <ClipboardPaste class="size-4" aria-hidden="true" />
+      Paste
     </button>
     <button type="button" class="{btn.primary} flex-1 sm:flex-none" onclick={send} disabled={!canSend}>
       <Send class="size-4" aria-hidden="true" />

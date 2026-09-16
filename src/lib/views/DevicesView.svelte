@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { RefreshCw, WifiOff } from "@lucide/svelte";
+  import { Plus, RefreshCw, WifiOff } from "@lucide/svelte";
+  import AddByAddressDialog from "../components/AddByAddressDialog.svelte";
   import DeviceCard from "../components/DeviceCard.svelte";
   import { confirm } from "../stores/confirm.svelte";
   import { devices } from "../stores/devices.svelte";
@@ -15,6 +16,8 @@
   }
 
   let { onSend }: Props = $props();
+
+  let addOpen = $state(false);
 
   async function refresh() {
     try {
@@ -53,17 +56,25 @@
       <h1 class={pageTitle}>Devices</h1>
       <p class={pageSubtitle}>Devices on your network running nearclip.</p>
     </div>
-    <button
-      type="button"
-      class={btn.secondary}
-      onclick={refresh}
-      disabled={devices.loading}
-      aria-label="Refresh devices"
-    >
-      <RefreshCw class="size-4 {devices.loading ? 'animate-spin' : ''}" aria-hidden="true" />
-      <span class="hidden sm:inline">Refresh</span>
-    </button>
+    <div class="flex shrink-0 gap-2">
+      <button type="button" class={btn.secondary} onclick={() => (addOpen = true)}>
+        <Plus class="size-4" aria-hidden="true" />
+        Add by IP
+      </button>
+      <button
+        type="button"
+        class={btn.secondary}
+        onclick={refresh}
+        disabled={devices.loading}
+        aria-label="Refresh devices"
+      >
+        <RefreshCw class="size-4 {devices.loading ? 'animate-spin' : ''}" aria-hidden="true" />
+        <span class="hidden sm:inline">Refresh</span>
+      </button>
+    </div>
   </header>
+
+  <AddByAddressDialog bind:open={addOpen} />
 
   {#if devices.list.length === 0}
     <div

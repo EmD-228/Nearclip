@@ -27,13 +27,26 @@ class PairingStore {
   private closeTimer: ReturnType<typeof setTimeout> | null = null;
 
   /** Initiator side: user clicked "Pair" on a device card. */
-  async start(deviceId: string, name: string) {
+  start(deviceId: string, name: string) {
+    return this.initiate(deviceId, name, () => api.startPairing(deviceId));
+  }
+
+  /**
+   * Initiator side, for a device mDNS cannot see. Until the peer answers, the
+   * address stands in for the device id and name: onCode() replaces both, and
+   * an early failure comes back as a result whose deviceId is this address.
+   */
+  startByAddress(addr: string) {
+    return this.initiate(addr, addr, () => api.pairByAddress(addr));
+  }
+
+  private async initiate(key: string, name: string, invoke: () => Promise<void>) {
     this.clearTimer();
-    this.current = { deviceId, name, code: null, role: "initiator", status: "waiting", error: null };
+    this.current = { deviceId: key, name, code: null, role: "initiator", status: "waiting", error: null };
     try {
-      await api.startPairing(deviceId);
+      await invoke();
     } catch (err) {
-      this.fail(deviceId, err);
+      this.fail(key, err);
     }
   }
 
