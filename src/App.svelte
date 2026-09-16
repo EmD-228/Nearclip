@@ -5,6 +5,10 @@
   import { events } from "./lib/api";
   import ConfirmDialog from "./lib/components/ConfirmDialog.svelte";
   import PairingDialog from "./lib/components/PairingDialog.svelte";
+  import PairQrDialog from "./lib/components/PairQrDialog.svelte";
+  import ScanOverlay from "./lib/components/ScanOverlay.svelte";
+  import { scanner } from "./lib/scan.svelte";
+  import { qr } from "./lib/stores/qr.svelte";
   import Sidebar from "./lib/components/Sidebar.svelte";
   import Toast from "./lib/components/Toast.svelte";
   import { devices } from "./lib/stores/devices.svelte";
@@ -68,6 +72,7 @@
       events.pairingResult((result) => {
         pairing.onResult(result);
         if (result.ok) {
+          qr.close();
           toasts.success(`Paired with ${devices.byId(result.deviceId)?.name ?? "device"}`);
         }
         devices.refresh().catch(() => {});
@@ -95,7 +100,8 @@
   });
 </script>
 
-<div class="flex h-full min-h-0">
+<!-- While scanning, the camera shows through the transparent webview behind this layout. -->
+<div class="flex h-full min-h-0 {scanner.active ? 'invisible' : ''}">
   <Sidebar {view} onNavigate={(v) => (view = v)} />
   <!-- Bottom padding below `sm` keeps content clear of the fixed tab bar (h-14 + safe area). -->
   <main
@@ -114,5 +120,7 @@
 </div>
 
 <PairingDialog />
+<PairQrDialog />
+<ScanOverlay />
 <ConfirmDialog />
 <Toast />

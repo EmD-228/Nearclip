@@ -9,6 +9,7 @@ import type {
   ListenInfo,
   PairingCode,
   PairingRequest,
+  PairQr,
   PairingResult,
   SendResult,
   SendTarget,
@@ -36,6 +37,10 @@ export const api = {
   readClipboard: () => invoke<string>("read_clipboard"),
   /** Pair with a device that mDNS cannot see, e.g. "192.168.1.20:47821" (port optional). Progress via the pairing events. */
   pairByAddress: (addr: string) => invoke<void>("pair_by_address", { addr }),
+  /** Desktop: a fresh one-time QR code for a phone to scan. */
+  createPairQr: () => invoke<PairQr>("create_pair_qr"),
+  /** Pair with the device that displayed this QR payload; both sides confirm automatically. Only `pairing-result` is emitted (deviceId = id from the payload). */
+  pairByQr: (payload: string) => invoke<void>("pair_by_qr", { payload }),
 
   getHistory: () => invoke<HistoryItem[]>("get_history"),
   clearHistory: () => invoke<void>("clear_history"),

@@ -1,10 +1,12 @@
 <script lang="ts">
-  import { Plus, RefreshCw, WifiOff } from "@lucide/svelte";
+  import { Plus, QrCode, RefreshCw, ScanLine, WifiOff } from "@lucide/svelte";
   import AddByAddressDialog from "../components/AddByAddressDialog.svelte";
   import DeviceCard from "../components/DeviceCard.svelte";
   import { confirm } from "../stores/confirm.svelte";
   import { devices } from "../stores/devices.svelte";
+  import { scanPairingQr } from "../scan.svelte";
   import { pairing } from "../stores/pairing.svelte";
+  import { qr } from "../stores/qr.svelte";
   import { settings } from "../stores/settings.svelte";
   import { errorMessage, toasts } from "../stores/toasts.svelte";
   import type { DeviceView } from "../types";
@@ -51,12 +53,24 @@
 </script>
 
 <div class={page}>
-  <header class="mb-5 flex items-start justify-between gap-4 sm:mb-6">
+  <!-- Below `sm` the actions wrap under the title, with Scan QR code stretching to fill the row. -->
+  <header class="mb-5 flex flex-wrap items-start justify-between gap-x-4 gap-y-3 sm:mb-6">
     <div>
       <h1 class={pageTitle}>Devices</h1>
       <p class={pageSubtitle}>Devices on your network running nearclip.</p>
     </div>
-    <div class="flex shrink-0 gap-2">
+    <div class="flex w-full gap-2 sm:w-auto sm:shrink-0">
+      {#if settings.isDesktop}
+        <button type="button" class={btn.primary} onclick={() => qr.show()}>
+          <QrCode class="size-4" aria-hidden="true" />
+          Show QR code
+        </button>
+      {:else}
+        <button type="button" class="{btn.primary} flex-1 sm:flex-none" onclick={scanPairingQr}>
+          <ScanLine class="size-4" aria-hidden="true" />
+          Scan QR code
+        </button>
+      {/if}
       <button type="button" class={btn.secondary} onclick={() => (addOpen = true)}>
         <Plus class="size-4" aria-hidden="true" />
         Add by IP

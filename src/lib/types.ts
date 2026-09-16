@@ -77,6 +77,14 @@ export interface ListenInfo {
   addrs: string[];
 }
 
+/** QR code shown on a desktop so a phone can pair with one scan. */
+export interface PairQr {
+  /** Inline <svg> markup of the QR code, dark modules on a light background */
+  svg: string;
+  /** How long the code stays valid, in milliseconds */
+  ttlMs: number;
+}
+
 export interface ClipboardSent {
   item: HistoryItem;
   results: SendResult[];

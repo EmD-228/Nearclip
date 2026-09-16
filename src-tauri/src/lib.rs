@@ -67,7 +67,10 @@ pub fn run() {
     #[cfg(mobile)]
     {
         // Share target: other apps can send text to nearclip through the OS share sheet.
-        builder = builder.plugin(tauri_plugin_sharehub::init());
+        // Barcode scanner: pairing by scanning the QR code a desktop shows.
+        builder = builder
+            .plugin(tauri_plugin_sharehub::init())
+            .plugin(tauri_plugin_barcode_scanner::init());
     }
 
     #[cfg(desktop)]
@@ -98,6 +101,7 @@ pub fn run() {
                 discovered: Mutex::new(HashMap::new()),
                 history: Mutex::new(history),
                 pairings: Mutex::new(HashMap::new()),
+                pair_token: Mutex::new(None),
                 listen_port: AtomicU16::new(0),
                 clipboard_tx,
                 discovery: Mutex::new(None),
@@ -163,6 +167,8 @@ pub fn run() {
             commands::copy_to_clipboard,
             commands::read_clipboard,
             commands::pair_by_address,
+            commands::create_pair_qr,
+            commands::pair_by_qr,
             commands::get_history,
             commands::clear_history,
             commands::get_settings,

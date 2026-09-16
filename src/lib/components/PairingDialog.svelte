@@ -51,6 +51,8 @@
                 Waiting for the pairing code. A 6-digit code will appear on both screens.
               {:else if c.status === "confirming"}
                 The other device still has to confirm that the codes match.
+              {:else if c.viaQr}
+                Keep nearclip open on both devices. This only takes a few seconds.
               {:else}
                 A 6-digit code will appear on both screens once connected.
               {/if}

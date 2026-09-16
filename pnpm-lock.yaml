@@ -20,6 +20,9 @@ importers:
       '@tauri-apps/plugin-autostart':
         specifier: ~2.5.1
         version: 2.5.1
+      '@tauri-apps/plugin-barcode-scanner':
+        specifier: ~2.4.6
+        version: 2.4.6
       '@tauri-apps/plugin-clipboard-manager':
         specifier: ~2.3.3
         version: 2.3.3
@@ -384,6 +387,9 @@ packages:
 
   '@tauri-apps/plugin-autostart@2.5.1':
     resolution: {integrity: sha512-zS/xx7yzveCcotkA+8TqkI2lysmG2wvQXv2HGAVExITmnFfHAdj1arGsbbfs3o6EktRHf6l34pJxc3YGG2mg7w==}
+
+  '@tauri-apps/plugin-barcode-scanner@2.4.6':
+    resolution: {integrity: sha512-9B2u+Sma002p1MzH5kGYFg8dPVNVbIHpyye6PY1A9AOeR7IOUAXS02VaUpnyXqJkUUnF/s2g7MgaB7wY9Ko6cg==}
 
   '@tauri-apps/plugin-clipboard-manager@2.3.3':
     resolution: {integrity: sha512-KnyoTs9gj1yEgDkSPUNjOIOHjJTr5wk8IWcYMOWxYTIJCip6QwlyPW8u2X+6bd6kHM4fAdZNpxoal0gy/TwJbg==}
@@ -975,6 +981,10 @@ snapshots:
       '@tauri-apps/cli-win32-x64-msvc': 2.11.4
 
   '@tauri-apps/plugin-autostart@2.5.1':
+    dependencies:
+      '@tauri-apps/api': 2.11.1
+
+  '@tauri-apps/plugin-barcode-scanner@2.4.6':
     dependencies:
       '@tauri-apps/api': 2.11.1
 

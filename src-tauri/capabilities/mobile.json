@@ -2,7 +2,15 @@
   "$schema": "../gen/schemas/mobile-schema.json",
   "identifier": "mobile-capability",
   "description": "Mobile-only capabilities: receiving text from the OS share sheet",
-  "platforms": ["android", "iOS"],
-  "windows": ["main"],
-  "permissions": ["sharehub:default"]
+  "platforms": [
+    "android",
+    "iOS"
+  ],
+  "windows": [
+    "main"
+  ],
+  "permissions": [
+    "sharehub:default",
+    "barcode-scanner:default"
+  ]
 }

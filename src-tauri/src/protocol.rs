@@ -28,6 +28,10 @@ pub enum Wire {
         /// (the connection's source port is ephemeral). 0 = unknown.
         #[serde(default)]
         port: u16,
+        /// One-time token read from the responder's QR code; lets both sides
+        /// confirm without comparing a code.
+        #[serde(default)]
+        token: Option<String>,
     },
     PairResponse {
         device_id: String,
@@ -35,6 +39,9 @@ pub enum Wire {
         id_pk: String,
         eph: String,
         nonce: String,
+        /// True when the responder accepted `PairRequest::token`.
+        #[serde(default)]
+        token_ok: bool,
     },
     PairReveal {
         eph: String,

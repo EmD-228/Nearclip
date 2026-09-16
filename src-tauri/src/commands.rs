@@ -14,7 +14,7 @@ use crate::state::{
     save_history, save_peers, save_settings, AppState, DeviceView, HistoryItem, SendResult,
     Settings,
 };
-use crate::{discovery, pairing, session, tray};
+use crate::{discovery, pairing, session, transport, tray};
 
 const MAX_NAME_LEN: usize = 48;
 
@@ -127,6 +127,16 @@ pub fn pair_by_address(app: AppHandle, addr: String) -> Result<()> {
 }
 
 #[tauri::command]
+pub fn create_pair_qr(app: AppHandle) -> Result<pairing::PairQr> {
+    pairing::create_qr(&app)
+}
+
+#[tauri::command]
+pub fn pair_by_qr(app: AppHandle, payload: String) -> Result<()> {
+    pairing::start_by_qr(app, &payload)
+}
+
+#[tauri::command]
 pub fn get_history(state: State<'_, AppState>) -> Vec<HistoryItem> {
     state.history.lock().unwrap().iter().cloned().collect()
 }
@@ -174,19 +184,12 @@ pub fn set_settings(
 
 #[tauri::command]
 pub fn get_listen_info(state: State<'_, AppState>) -> ListenInfo {
-    let mut addrs: Vec<String> = if_addrs::get_if_addrs()
-        .map(|list| {
-            list.into_iter()
-                .filter(|i| !i.is_loopback() && i.ip().is_ipv4())
-                .map(|i| i.ip().to_string())
-                .collect()
-        })
-        .unwrap_or_default();
-    addrs.sort();
-    addrs.dedup();
     ListenInfo {
         port: state.listen_port.load(Ordering::Relaxed),
-        addrs,
+        addrs: transport::local_ipv4_addrs()
+            .iter()
+            .map(|ip| ip.to_string())
+            .collect(),
     }
 }
 

@@ -41,6 +41,7 @@ x25519-dalek = { version = "3.0.0", features = ["getrandom", "static_secrets"] }
 uuid = { version = "1.26.1", features = ["v4", "serde"] }
 if-addrs = "0.15.0"
 tauri-plugin-clipboard-manager = "2"
+qrcode = { version = "0.14", default-features = false, features = ["svg"] }
 
 
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration
@@ -56,4 +57,5 @@ tauri-plugin-autostart = "2"
 tauri-plugin-single-instance = "2"
 
 [target.'cfg(any(target_os = "android", target_os = "ios"))'.dependencies]
+tauri-plugin-barcode-scanner = "2"
 tauri-plugin-sharehub = "0.1.3"

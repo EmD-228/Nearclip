@@ -18,7 +18,7 @@ use tauri_plugin_store::StoreExt;
 use crate::clipboard::ClipboardCmd;
 use crate::error::Result;
 use crate::identity::Identity;
-use crate::pairing::PairingHandle;
+use crate::pairing::{PairToken, PairingHandle};
 
 pub const HISTORY_CAP: usize = 200;
 const HISTORY_PERSISTED: usize = 100;
@@ -146,6 +146,8 @@ pub struct AppState {
     pub discovered: Mutex<HashMap<String, DiscoveredDevice>>,
     pub history: Mutex<VecDeque<HistoryItem>>,
     pub pairings: Mutex<HashMap<String, PairingHandle>>,
+    /// Token of the QR code currently displayed, if any (one-time, short-lived).
+    pub pair_token: Mutex<Option<PairToken>>,
     pub listen_port: AtomicU16,
     pub clipboard_tx: std::sync::mpsc::Sender<ClipboardCmd>,
     pub discovery: Mutex<Option<ServiceDaemon>>,

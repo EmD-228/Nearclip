@@ -12,7 +12,7 @@
 
 use std::net::SocketAddr;
 use std::sync::atomic::Ordering;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager};
@@ -31,6 +31,37 @@ use crate::state::{now_ms, save_peers, AppState, PeerRecord};
 use crate::{discovery, transport, tray};
 
 const PAIRING_TIMEOUT: Duration = Duration::from_secs(120);
+const QR_TOKEN_TTL: Duration = Duration::from_secs(5 * 60);
+const QR_PREFIX: &str = "nearclip://pair?";
+
+/// One-time secret embedded in the QR code a desktop displays. Presenting it
+/// proves the initiator saw the screen, so neither side needs to compare a code.
+pub struct PairToken {
+    value: String,
+    created: Instant,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PairQr {
+    svg: String,
+    /// How long the code stays valid, so the UI can show its expiry.
+    ttl_ms: u64,
+}
+
+/// What the initiator learned from a scanned QR code: the displayed device's
+/// identity key and the one-time token that proves the screen was seen.
+struct QrAuth {
+    pk: [u8; 32],
+    token: String,
+}
+
+/// What a scanned QR code tells us about the device that displayed it.
+struct QrTarget {
+    addrs: Vec<SocketAddr>,
+    id: String,
+    auth: QrAuth,
+}
 
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
@@ -81,7 +112,14 @@ pub fn start(app: AppHandle, device_id: String) -> Result<()> {
         .get(&device_id)
         .map(|d| d.name.clone())
         .unwrap_or_else(|| "Unknown device".to_string());
-    spawn_initiator(app, device_id.clone(), peer_name, Some(device_id), addr)
+    spawn_initiator(
+        app,
+        device_id.clone(),
+        peer_name,
+        Some(device_id),
+        vec![addr],
+        None,
+    )
 }
 
 /// Starts pairing with a device mDNS cannot see, given "ip" or "ip:port".
@@ -90,13 +128,114 @@ pub fn start(app: AppHandle, device_id: String) -> Result<()> {
 pub fn start_by_address(app: AppHandle, addr_str: &str) -> Result<()> {
     let addr_str = addr_str.trim();
     let addr = parse_peer_addr(addr_str)?;
-    spawn_initiator(app, addr_str.to_string(), addr_str.to_string(), None, addr)
+    spawn_initiator(
+        app,
+        addr_str.to_string(),
+        addr_str.to_string(),
+        None,
+        vec![addr],
+        None,
+    )
+}
+
+/// Desktop side of QR pairing: a payload with our addresses, identity and a
+/// fresh one-time token, plus its rendering as an SVG.
+pub fn create_qr(app: &AppHandle) -> Result<PairQr> {
+    let state = app.state::<AppState>();
+    let addrs = transport::local_ipv4_addrs();
+    if addrs.is_empty() {
+        return Err(AppError::msg("No network address found. Connect to Wi-Fi first."));
+    }
+    let port = state.listen_port.load(Ordering::Relaxed);
+    let token = hex::encode(random_bytes::<16>());
+    let payload = format!(
+        "{QR_PREFIX}a={}&id={}&pk={}&t={}",
+        addrs
+            .iter()
+            .map(|ip| format!("{ip}:{port}"))
+            .collect::<Vec<_>>()
+            .join(","),
+        state.identity.device_id,
+        hex::encode(state.identity.public_key()),
+        token,
+    );
+    let svg = qrcode::QrCode::new(payload.as_bytes())
+        .map_err(|e| AppError::msg(format!("QR code: {e}")))?
+        .render::<qrcode::render::svg::Color>()
+        .min_dimensions(240, 240)
+        .dark_color(qrcode::render::svg::Color("#000000"))
+        .light_color(qrcode::render::svg::Color("#ffffff"))
+        .build();
+    *state.pair_token.lock().unwrap() = Some(PairToken {
+        value: token,
+        created: Instant::now(),
+    });
+    Ok(PairQr {
+        svg,
+        ttl_ms: QR_TOKEN_TTL.as_millis() as u64,
+    })
+}
+
+/// Phone side of QR pairing: connect to the displayed device, check its
+/// identity against the QR and let both sides confirm automatically.
+pub fn start_by_qr(app: AppHandle, payload: &str) -> Result<()> {
+    let target = parse_qr(payload)?;
+    spawn_initiator(
+        app,
+        target.id.clone(),
+        "Computer".to_string(),
+        Some(target.id),
+        target.addrs,
+        Some(target.auth),
+    )
+}
+
+fn parse_qr(payload: &str) -> Result<QrTarget> {
+    let query = payload
+        .strip_prefix(QR_PREFIX)
+        .ok_or_else(|| AppError::msg("This is not a nearclip pairing code"))?;
+    let mut addrs = Vec::new();
+    let (mut id, mut pk, mut token) = (None, None, None);
+    for (k, v) in query.split('&').filter_map(|kv| kv.split_once('=')) {
+        match k {
+            "a" => addrs = v.split(',').filter_map(|a| a.parse().ok()).collect(),
+            "id" => id = Some(v.to_string()),
+            "pk" => pk = hex::decode(v).ok().and_then(|b| <[u8; 32]>::try_from(b).ok()),
+            "t" => token = Some(v.to_string()),
+            _ => {}
+        }
+    }
+    match (id, pk, token) {
+        (Some(id), Some(pk), Some(token)) if !addrs.is_empty() && device_id_from_pk(&pk) == id => {
+            Ok(QrTarget {
+                addrs,
+                id,
+                auth: QrAuth { pk, token },
+            })
+        }
+        _ => Err(AppError::msg("This pairing code is incomplete or damaged")),
+    }
+}
+
+/// Consumes the displayed token if `presented` matches and it is still fresh.
+fn take_token(state: &AppState, presented: &str) -> bool {
+    let mut slot = state.pair_token.lock().unwrap();
+    let valid = slot
+        .as_ref()
+        .is_some_and(|t| t.value == presented && t.created.elapsed() < QR_TOKEN_TTL);
+    if valid {
+        *slot = None;
+    }
+    valid
 }
 
 /// "ip:port" or bare "ip" (default port).
 fn parse_peer_addr(s: &str) -> Result<SocketAddr> {
     s.parse::<SocketAddr>()
-        .or_else(|_| s.parse::<std::net::IpAddr>().map(|ip| SocketAddr::new(ip, DEFAULT_PORT)))
+        .or_else(|_| {
+            s.parse::<std::net::IpAddr>()
+                .map(|ip| SocketAddr::new(ip, DEFAULT_PORT))
+        })
         .map_err(|_| AppError::msg("Enter an address like 192.168.1.20 or 192.168.1.20:47821"))
 }
 
@@ -107,7 +246,8 @@ fn spawn_initiator(
     mut key: String,
     peer_name: String,
     expected_id: Option<String>,
-    addr: SocketAddr,
+    addrs: Vec<SocketAddr>,
+    qr: Option<QrAuth>,
 ) -> Result<()> {
     let state = app.state::<AppState>();
     let (confirm_tx, confirm_rx) = mpsc::channel(1);
@@ -131,7 +271,14 @@ fn spawn_initiator(
     tauri::async_runtime::spawn(async move {
         let res = tokio::time::timeout(
             PAIRING_TIMEOUT,
-            run_initiator(&app, &mut key, expected_id.as_deref(), addr, confirm_rx),
+            run_initiator(
+                &app,
+                &mut key,
+                expected_id.as_deref(),
+                &addrs,
+                qr.as_ref(),
+                confirm_rx,
+            ),
         )
         .await
         .unwrap_or(Err(AppError::Timeout));
@@ -154,6 +301,7 @@ pub async fn respond(
         id_pk,
         commit: commit_a,
         port: peer_port,
+        token,
     } = first
     else {
         return Err(AppError::protocol("expected PairRequest"));
@@ -183,6 +331,8 @@ pub async fn respond(
     };
 
     let state = app.state::<AppState>();
+    // A valid QR token means the initiator saw our screen: no code to compare.
+    let token_ok = token.is_some_and(|t| take_token(&state, &t));
     let (confirm_tx, confirm_rx) = mpsc::channel(1);
     let busy = state.pairings.lock().unwrap().contains_key(&peer_id);
     if busy {
@@ -224,6 +374,7 @@ pub async fn respond(
             &peer_name,
             peer_pk,
             commit_a,
+            token_ok,
             confirm_rx,
         ),
     )
@@ -253,7 +404,8 @@ async fn run_initiator(
     app: &AppHandle,
     key: &mut String,
     expected_id: Option<&str>,
-    addr: SocketAddr,
+    addrs: &[SocketAddr],
+    qr: Option<&QrAuth>,
     confirm_rx: mpsc::Receiver<bool>,
 ) -> Result<()> {
     let state = app.state::<AppState>();
@@ -261,7 +413,7 @@ async fn run_initiator(
     let my_pk = state.identity.public_key();
     let my_name = state.settings.lock().unwrap().device_name.clone();
 
-    let mut stream = transport::connect(addr).await?;
+    let (mut stream, addr) = transport::connect_any(addrs).await?;
 
     let eph_secret = StaticSecret::from(random_bytes::<32>());
     let eph_a = PublicKey::from(&eph_secret).to_bytes();
@@ -276,23 +428,28 @@ async fn run_initiator(
             id_pk: b64e(&my_pk),
             commit: b64e(&commit(&eph_a, &nonce_a)),
             port: state.listen_port.load(Ordering::Relaxed),
+            token: qr.map(|q| q.token.clone()),
         },
     )
     .await?;
 
-    let (peer_id, peer_name, peer_pk, eph_b, nonce_b) = match read_frame(&mut stream).await? {
+    let (peer_id, peer_name, peer_pk, eph_b, nonce_b, token_ok) = match read_frame(&mut stream)
+        .await?
+    {
         Wire::PairResponse {
             device_id,
             name,
             id_pk,
             eph,
             nonce,
+            token_ok,
         } => (
             device_id,
             name,
             b64d_array::<32>(&id_pk)?,
             b64d_array::<32>(&eph)?,
             b64d_array::<32>(&nonce)?,
+            token_ok,
         ),
         Wire::Error { code, msg } => return Err(AppError::msg(format!("{msg} ({code})"))),
         other => {
@@ -301,7 +458,10 @@ async fn run_initiator(
             )))
         }
     };
-    if expected_id.is_some_and(|id| id != peer_id) || device_id_from_pk(&peer_pk) != peer_id {
+    if expected_id.is_some_and(|id| id != peer_id)
+        || device_id_from_pk(&peer_pk) != peer_id
+        || qr.is_some_and(|q| q.pk != peer_pk)
+    {
         return Err(AppError::Crypto);
     }
 
@@ -339,7 +499,9 @@ async fn run_initiator(
         rekey(app, key, &peer_id)?;
         *key = peer_id.clone();
     }
-    publish_code(app, key, &peer_name, &material.sas, Role::Initiator);
+    // Only trust the peer's token_ok when we actually presented a QR token.
+    let verified_by_qr = qr.is_some() && token_ok;
+    settle(app, key, &peer_name, &material.sas, Role::Initiator, verified_by_qr)?;
     confirm_phase(stream, confirm_rx, &material.pairing_key).await?;
 
     save_peer(
@@ -365,6 +527,7 @@ async fn run_responder(
     peer_name: &str,
     peer_pk: [u8; 32],
     commit_a: [u8; 32],
+    token_ok: bool,
     confirm_rx: mpsc::Receiver<bool>,
 ) -> Result<()> {
     let state = app.state::<AppState>();
@@ -384,6 +547,7 @@ async fn run_responder(
             id_pk: b64e(&my_pk),
             eph: b64e(&eph_b),
             nonce: b64e(&nonce_b),
+            token_ok,
         },
     )
     .await?;
@@ -420,7 +584,7 @@ async fn run_responder(
         .to_bytes();
     let material = derive_pairing(&shared, &transcript);
 
-    publish_code(app, peer_id, peer_name, &material.sas, Role::Responder);
+    settle(app, peer_id, peer_name, &material.sas, Role::Responder, token_ok)?;
     confirm_phase(stream, confirm_rx, &material.pairing_key).await?;
 
     save_peer(
@@ -477,6 +641,25 @@ async fn confirm_phase(
                 }
             }
         }
+    }
+}
+
+/// Once the key material is derived: with a verified QR token both identities
+/// are already proven, so this side confirms on its own; otherwise the user
+/// gets the code to compare.
+fn settle(
+    app: &AppHandle,
+    device_id: &str,
+    peer_name: &str,
+    sas: &str,
+    role: Role,
+    verified_by_qr: bool,
+) -> Result<()> {
+    if verified_by_qr {
+        confirm(app, device_id, true)
+    } else {
+        publish_code(app, device_id, peer_name, sas, role);
+        Ok(())
     }
 }
 
@@ -571,6 +754,7 @@ mod tests {
                 id_pk: b64e(&my_pk),
                 commit: b64e(&commit(&eph_a, &nonce_a)),
                 port: 0,
+                token: None,
             },
         )
         .await?;
@@ -632,6 +816,7 @@ mod tests {
                 id_pk: b64e(&my_pk),
                 eph: b64e(&eph_b),
                 nonce: b64e(&nonce_b),
+                token_ok: false,
             },
         )
         .await?;
@@ -654,6 +839,27 @@ mod tests {
             .diffie_hellman(&PublicKey::from(eph_a))
             .to_bytes();
         Ok(derive_pairing(&shared, &t))
+    }
+
+    #[test]
+    fn parse_qr_roundtrip_and_rejects_tampering() {
+        let me = Identity::from_seed(random_bytes());
+        let pk = hex::encode(me.public_key());
+        let payload = format!(
+            "{QR_PREFIX}a=192.168.1.5:47821,10.0.0.2:47821&id={}&pk={pk}&t=abc123",
+            me.device_id
+        );
+        let t = parse_qr(&payload).unwrap();
+        assert_eq!(t.addrs.len(), 2);
+        assert_eq!(t.id, me.device_id);
+        assert_eq!(t.auth.pk, me.public_key());
+        assert_eq!(t.auth.token, "abc123");
+
+        // Wrong scheme, or an id that does not match the key, is refused.
+        assert!(parse_qr("https://example.com").is_err());
+        let other = Identity::from_seed(random_bytes());
+        let forged = payload.replace(&me.device_id, &other.device_id);
+        assert!(parse_qr(&forged).is_err());
     }
 
     #[test]

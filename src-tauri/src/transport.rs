@@ -67,6 +67,37 @@ async fn handle_conn(app: AppHandle, mut stream: TcpStream, peer_addr: SocketAdd
     }
 }
 
+/// Non-loopback IPv4 addresses of this machine, sorted and deduplicated.
+pub fn local_ipv4_addrs() -> Vec<std::net::IpAddr> {
+    let mut addrs: Vec<std::net::IpAddr> = if_addrs::get_if_addrs()
+        .map(|list| {
+            list.into_iter()
+                .filter(|i| !i.is_loopback() && i.ip().is_ipv4())
+                .map(|i| i.ip())
+                .collect()
+        })
+        .unwrap_or_default();
+    addrs.sort();
+    addrs.dedup();
+    addrs
+}
+
+/// First address that accepts a connection. All candidates are tried at once,
+/// so an unreachable interface in the list costs nothing extra.
+pub async fn connect_any(addrs: &[SocketAddr]) -> Result<(TcpStream, SocketAddr)> {
+    let mut attempts = tokio::task::JoinSet::new();
+    for addr in addrs {
+        let addr = *addr;
+        attempts.spawn(async move { connect(addr).await.map(|s| (s, addr)) });
+    }
+    while let Some(joined) = attempts.join_next().await {
+        if let Ok(Ok(found)) = joined {
+            return Ok(found);
+        }
+    }
+    Err(AppError::DeviceUnavailable)
+}
+
 pub async fn connect(addr: SocketAddr) -> Result<TcpStream> {
     let stream = tokio::time::timeout(CONNECT_TIMEOUT, TcpStream::connect(addr))
         .await

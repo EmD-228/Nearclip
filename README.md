@@ -8,6 +8,7 @@ nearclip is a LAN-only, end-to-end encrypted clipboard text sharing app for macO
 - Optional auto-sync (desktop only): every text you copy is sent to your paired devices.
 - History of sent and received items, with one-click copy.
 - Write received text straight to the local clipboard (toggle).
+- Pair a phone by scanning a QR code shown on the computer: one scan, no code to compare, and it works even when mDNS discovery fails or addresses change.
 - Add a device by IP address when the network blocks mDNS discovery.
 - Android: "Share to nearclip" from any app's share sheet; the text lands in the Send view.
 - Desktop: tray icon with close-to-tray behaviour, start at login (autostart).
@@ -123,6 +124,7 @@ pnpm tauri android build --target aarch64 --apk --split-per-abi
 - Pairing runs an X25519 ECDH exchange with a commitment step, so neither side can pick its ephemeral key after seeing the other's.
 - The shared secret is expanded with HKDF bound to the full pairing transcript (both identity keys, both ephemeral keys, both nonces), and each side signs that transcript with its Ed25519 identity key so the pairing is tied to the identity that gets stored.
 - A 6-digit short authentication string (SAS) is derived from that transcript and displayed on both screens. Pairing only completes when both users confirm the codes match, which defeats an active man-in-the-middle on the local network.
+- QR pairing replaces the code comparison with a visual channel: the QR carries the computer's public key and a one-time token valid for 5 minutes. The phone checks the key it connects to against the QR, the computer checks the token, and both sides then confirm on their own.
 - Every connection after pairing derives a fresh per-connection session key from the paired secret. Payloads are encrypted with AES-256-GCM.
 - Pairing keys are currently stored in plaintext JSON under the app data directory (macOS: `~/Library/Application Support/com.nearclip/`). Moving them to the OS keychain is a planned follow-up.
 

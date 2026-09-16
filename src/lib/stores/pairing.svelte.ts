@@ -18,6 +18,8 @@ export interface PairingState {
   role: PairingRole;
   status: PairingStatus;
   error: string | null;
+  /** Started from a scanned QR code: both sides confirm on their own, no code is shown. */
+  viaQr: boolean;
 }
 
 const SUCCESS_CLOSE_MS = 1500;
@@ -40,9 +42,31 @@ class PairingStore {
     return this.initiate(addr, addr, () => api.pairByAddress(addr));
   }
 
-  private async initiate(key: string, name: string, invoke: () => Promise<void>) {
+  /**
+   * Mobile, after scanning the QR code a computer shows. No pairing-code event
+   * follows: the only result carries the `id` from the payload, so that is the key.
+   */
+  startByQr(payload: string) {
+    let id: string | null = null;
+    try {
+      id = new URL(payload).searchParams.get("id");
+    } catch {
+      // Unparseable payload: the backend rejects it and fail() shows the error.
+    }
+    return this.initiate(id ?? payload, "your computer", () => api.pairByQr(payload), true);
+  }
+
+  private async initiate(key: string, name: string, invoke: () => Promise<void>, viaQr = false) {
     this.clearTimer();
-    this.current = { deviceId: key, name, code: null, role: "initiator", status: "waiting", error: null };
+    this.current = {
+      deviceId: key,
+      name,
+      code: null,
+      role: "initiator",
+      status: "waiting",
+      error: null,
+      viaQr,
+    };
     try {
       await invoke();
     } catch (err) {
@@ -60,6 +84,7 @@ class PairingStore {
       role: "responder",
       status: "request",
       error: null,
+      viaQr: false,
     };
   }
 
@@ -72,6 +97,7 @@ class PairingStore {
       role: payload.role,
       status: "code",
       error: null,
+      viaQr: false,
     };
   }
 
@@ -135,6 +161,7 @@ class PairingStore {
       role: this.current?.role ?? "initiator",
       status: "error",
       error: message,
+      viaQr: this.current?.viaQr ?? false,
     };
   }
 

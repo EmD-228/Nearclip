@@ -24,6 +24,12 @@ body {
   -webkit-user-select: none;
 }
 
+/* Mobile QR scan: the camera renders behind the webview (see lib/scan.svelte.ts). */
+html.scanning,
+html.scanning body {
+  background: transparent !important;
+}
+
 textarea,
 input {
   user-select: text;
