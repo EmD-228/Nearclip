@@ -30,6 +30,12 @@ export function fullTime(tsMs: number): string {
   return new Date(tsMs).toLocaleString();
 }
 
+/** Joins incoming text onto an existing draft on a new line (replaces an empty draft). */
+export function appendDraft(draft: string, incoming: string): string {
+  if (draft.length === 0) return incoming;
+  return draft.endsWith("\n") ? draft + incoming : `${draft}\n${incoming}`;
+}
+
 export function plural(n: number, singular: string, pluralForm = `${singular}s`): string {
   return `${n} ${n === 1 ? singular : pluralForm}`;
 }

@@ -64,6 +64,12 @@ pub fn run() {
         .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(tauri_plugin_opener::init());
 
+    #[cfg(mobile)]
+    {
+        // Share target: other apps can send text to nearclip through the OS share sheet.
+        builder = builder.plugin(tauri_plugin_sharehub::init());
+    }
+
     #[cfg(desktop)]
     {
         builder = builder.plugin(

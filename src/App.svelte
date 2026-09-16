@@ -12,6 +12,8 @@
   import { pairing } from "./lib/stores/pairing.svelte";
   import { settings } from "./lib/stores/settings.svelte";
   import { errorMessage, toasts } from "./lib/stores/toasts.svelte";
+  import { consumeSharedText, onSharedText } from "./lib/share";
+  import { appendDraft } from "./lib/format";
   import type { SendTarget } from "./lib/types";
   import type { View } from "./lib/view";
   import DevicesView from "./lib/views/DevicesView.svelte";
@@ -33,6 +35,14 @@
   }
 
   const inTauri = isTauri();
+
+  // Text shared from another app lands in the Send view, ready to send.
+  async function applySharedText() {
+    const text = await consumeSharedText();
+    if (!text) return;
+    sendDraft = appendDraft(sendDraft, text);
+    view = "send";
+  }
 
   async function init() {
     const loads: [string, () => Promise<unknown>][] = [
@@ -71,7 +81,13 @@
       events.appError(({ message }) => toasts.error(message)),
     ].map((p) => p.catch(() => (() => {}) as UnlistenFn));
 
-    void init();
+    void init().then(() => {
+      // The share sheet only exists on mobile; the plugin is not even registered on desktop.
+      if (inTauri && !settings.isDesktop) {
+        subscriptions.push(onSharedText(() => void applySharedText()));
+        void applySharedText();
+      }
+    });
 
     return () => {
       for (const sub of subscriptions) sub.then((unlisten) => unlisten());

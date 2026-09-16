@@ -2,7 +2,7 @@
   import { onMount } from "svelte";
   import { ClipboardPaste, Eraser, Send } from "@lucide/svelte";
   import { api } from "../api";
-  import { plural } from "../format";
+  import { appendDraft, plural } from "../format";
   import { devices } from "../stores/devices.svelte";
   import { settings } from "../stores/settings.svelte";
   import { errorMessage, toasts } from "../stores/toasts.svelte";
@@ -87,8 +87,7 @@
       toasts.info("Clipboard is empty");
       return;
     }
-    if (text.length === 0) text = clip;
-    else text = text.endsWith("\n") ? text + clip : `${text}\n${clip}`;
+    text = appendDraft(text, clip);
     // Same rule as autofocus: focusing on phones would pop the keyboard.
     if (settings.isDesktop) textarea?.focus();
   }
