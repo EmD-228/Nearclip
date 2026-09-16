@@ -24,6 +24,10 @@ pub enum Wire {
         name: String,
         id_pk: String,
         commit: String,
+        /// Sender's listening port, so the responder can reach it back later
+        /// (the connection's source port is ephemeral). 0 = unknown.
+        #[serde(default)]
+        port: u16,
     },
     PairResponse {
         device_id: String,
@@ -44,6 +48,9 @@ pub enum Wire {
         v: u8,
         device_id: String,
         salt: String,
+        /// Sender's listening port (see `PairRequest::port`).
+        #[serde(default)]
+        port: u16,
     },
     SessionAck {
         device_id: String,

@@ -11,6 +11,7 @@
 //! ```
 
 use std::net::SocketAddr;
+use std::sync::atomic::Ordering;
 use std::time::Duration;
 
 use serde::Serialize;
@@ -152,6 +153,7 @@ pub async fn respond(
         name: peer_name,
         id_pk,
         commit: commit_a,
+        port: peer_port,
     } = first
     else {
         return Err(AppError::protocol("expected PairRequest"));
@@ -215,7 +217,14 @@ pub async fn respond(
     let res = tokio::time::timeout(
         PAIRING_TIMEOUT,
         run_responder(
-            &app, stream, peer_addr, &peer_id, &peer_name, peer_pk, commit_a, confirm_rx,
+            &app,
+            stream,
+            transport::listen_addr(peer_addr, peer_port),
+            &peer_id,
+            &peer_name,
+            peer_pk,
+            commit_a,
+            confirm_rx,
         ),
     )
     .await
@@ -266,6 +275,7 @@ async fn run_initiator(
             name: my_name,
             id_pk: b64e(&my_pk),
             commit: b64e(&commit(&eph_a, &nonce_a)),
+            port: state.listen_port.load(Ordering::Relaxed),
         },
     )
     .await?;
@@ -560,6 +570,7 @@ mod tests {
                 name: "A".into(),
                 id_pk: b64e(&my_pk),
                 commit: b64e(&commit(&eph_a, &nonce_a)),
+                port: 0,
             },
         )
         .await?;

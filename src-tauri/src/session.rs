@@ -1,6 +1,7 @@
 //! Encrypted clipboard sessions between paired devices. One connection per send.
 
 use std::net::SocketAddr;
+use std::sync::atomic::Ordering;
 use std::time::Duration;
 
 use serde::Serialize;
@@ -130,6 +131,7 @@ pub async fn send_text_to_peer(
                 v: PROTO_VERSION,
                 device_id: my_id.clone(),
                 salt: b64e(&salt_c),
+                port: state.listen_port.load(Ordering::Relaxed),
             },
         )
         .await?;
@@ -188,7 +190,13 @@ pub async fn serve(
     peer_addr: SocketAddr,
     first: Wire,
 ) -> Result<()> {
-    let Wire::SessionInit { v, device_id, salt } = first else {
+    let Wire::SessionInit {
+        v,
+        device_id,
+        salt,
+        port,
+    } = first
+    else {
         return Err(AppError::protocol("expected SessionInit"));
     };
     if v != PROTO_VERSION {
@@ -267,10 +275,7 @@ pub async fn serve(
                 transport::remember_peer_addr(
                     &app,
                     &peer.device_id,
-                    SocketAddr::new(
-                        peer_addr.ip(),
-                        transport_port_of(&state, &peer.device_id).unwrap_or(peer_addr.port()),
-                    ),
+                    transport::listen_addr(peer_addr, port),
                 );
                 write_frame(&mut stream, &encrypt_plain(&key, &Plain::Ack { id })?).await?;
             }
@@ -278,26 +283,6 @@ pub async fn serve(
             other => return Err(AppError::protocol(format!("unexpected payload {other:?}"))),
         }
     }
-}
-
-/// The listening port of a peer is its advertised port, not the ephemeral
-/// source port of its outbound connection.
-fn transport_port_of(state: &AppState, device_id: &str) -> Option<u16> {
-    state
-        .discovered
-        .lock()
-        .unwrap()
-        .get(device_id)
-        .map(|d| d.port)
-        .or_else(|| {
-            state
-                .peers
-                .lock()
-                .unwrap()
-                .get(device_id)
-                .and_then(|p| p.last_seen_addr)
-                .map(|a| a.port())
-        })
 }
 
 fn deliver_received(

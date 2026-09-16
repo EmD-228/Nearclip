@@ -93,6 +93,17 @@ pub fn resolve_peer_addr(state: &AppState, device_id: &str) -> Option<SocketAddr
         .and_then(|p| p.last_seen_addr)
 }
 
+/// Where a peer can be reached back: the IP it connected from, on the
+/// listening port it advertised (its connection's source port is ephemeral).
+pub fn listen_addr(conn: SocketAddr, advertised_port: u16) -> SocketAddr {
+    let port = if advertised_port > 0 {
+        advertised_port
+    } else {
+        conn.port()
+    };
+    SocketAddr::new(conn.ip(), port)
+}
+
 pub fn remember_peer_addr(app: &AppHandle, device_id: &str, addr: SocketAddr) {
     let state = app.state::<AppState>();
     let mut peers = state.peers.lock().unwrap();
