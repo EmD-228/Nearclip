@@ -5,11 +5,13 @@ nearclip is a LAN-only, end-to-end encrypted clipboard text sharing app for macO
 ## Features (MVP)
 
 - Send text manually to one paired device or to all of them, with a Paste button to grab the current clipboard.
-- Optional auto-sync (desktop only): every text you copy is sent to your paired devices.
+- Optional auto-sync: on desktop every text you copy is sent to your paired devices; on Android, where the clipboard cannot be read in the background, the last copied text is sent each time nearclip opens (the persistent notification has a "Send clipboard" button for that).
 - History of sent and received items, with one-click copy.
 - Write received text straight to the local clipboard (toggle).
 - Pair a phone by scanning a QR code shown on the computer: one scan, no code to compare, and it works even when mDNS discovery fails or addresses change.
 - Add a device by IP address when the network blocks mDNS discovery.
+- Automatic mDNS discovery is an opt-in setting ("Automatic discovery", experimental): it is unreliable on many Wi-Fi networks, so pairing goes through QR codes or addresses by default. Paired devices show how they were paired rather than an online/offline state.
+- Unpairing on one device tells the other to forget the pairing too; if that message cannot be delivered, the stale side drops the pairing the next time it tries to send.
 - Android: "Share to nearclip" from any app's share sheet; the text lands in the Send view.
 - Desktop: tray icon with close-to-tray behaviour, start at login (autostart).
 - System notifications when text is received.

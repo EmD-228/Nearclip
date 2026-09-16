@@ -14,13 +14,17 @@ export interface Identity {
   desktop: boolean;
 }
 
+/** How a pairing was established. Shown instead of an online/offline state. */
+export type PairedVia = "discovery" | "address" | "qr";
+
 export interface DeviceView {
   deviceId: string;
   name: string;
   paired: boolean;
-  online: boolean;
-  /** "192.168.1.20:47821" when known, otherwise null */
+  /** "192.168.1.20:47821" when known (last address used), otherwise null */
   addr: string | null;
+  /** Set for paired devices only */
+  via: PairedVia | null;
 }
 
 export type Direction = "sent" | "received";
@@ -43,6 +47,8 @@ export interface Settings {
   notifyOnReceive: boolean;
   closeToTray: boolean;
   autostart: boolean;
+  /** mDNS automatic discovery. Experimental, off by default. */
+  discovery: boolean;
 }
 
 export interface SendResult {

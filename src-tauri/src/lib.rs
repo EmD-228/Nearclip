@@ -120,10 +120,8 @@ pub fn run() {
                 .store(port, Ordering::Relaxed);
             transport::start_listener(handle.clone(), listener);
 
-            match discovery::start(&handle, port) {
-                Ok(daemon) => *handle.state::<AppState>().discovery.lock().unwrap() = Some(daemon),
-                Err(e) => log::error!("mDNS discovery failed to start: {e}"),
-            }
+            discovery::set_enabled(&handle, settings.discovery);
+            discovery::start_stale_sweep(&handle);
 
             #[cfg(desktop)]
             {
@@ -141,6 +139,16 @@ pub fn run() {
             Ok(())
         })
         .on_window_event(|window, event| {
+            // Mobile can only read the clipboard in the foreground: check it
+            // whenever the app comes back (auto-sync decides whether to send).
+            // Desktop polls instead.
+            if cfg!(mobile) && matches!(event, WindowEvent::Focused(true)) {
+                let _ = window
+                    .app_handle()
+                    .state::<AppState>()
+                    .clipboard_tx
+                    .send(clipboard::ClipboardCmd::SyncNow);
+            }
             if let WindowEvent::CloseRequested { api, .. } = event {
                 let close_to_tray = window
                     .app_handle()

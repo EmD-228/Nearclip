@@ -8,6 +8,7 @@ export const DEFAULT_SETTINGS: Settings = {
   notifyOnReceive: true,
   closeToTray: true,
   autostart: false,
+  discovery: false,
 };
 
 class SettingsStore {

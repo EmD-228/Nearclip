@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Plus, QrCode, RefreshCw, ScanLine, WifiOff } from "@lucide/svelte";
+  import { ClipboardCopy, MonitorSmartphone, Plus, QrCode, RefreshCw, ScanLine } from "@lucide/svelte";
   import AddByAddressDialog from "../components/AddByAddressDialog.svelte";
   import DeviceCard from "../components/DeviceCard.svelte";
   import { confirm } from "../stores/confirm.svelte";
@@ -11,7 +11,7 @@
   import { errorMessage, toasts } from "../stores/toasts.svelte";
   import type { DeviceView } from "../types";
   import { api } from "../api";
-  import { btn, page, pageSubtitle, pageTitle, sectionTitle } from "../ui";
+  import { btn, card, page, pageSubtitle, pageTitle, sectionTitle } from "../ui";
 
   interface Props {
     onSend: (deviceId: string) => void;
@@ -20,6 +20,29 @@
   let { onSend }: Props = $props();
 
   let addOpen = $state(false);
+
+  // Without discovery only paired devices exist in the UI; unpaired ones are never listed.
+  let showAvailable = $derived(settings.settings.discovery);
+  let hasDevices = $derived(
+    devices.paired.length > 0 || (showAvailable && devices.available.length > 0),
+  );
+
+  // Dismissed for this session only.
+  let autoSyncTipDismissed = $state(false);
+  let showAutoSyncTip = $derived(
+    devices.paired.length > 0 &&
+      !settings.settings.autoSync &&
+      !autoSyncTipDismissed,
+  );
+
+  async function enableAutoSync() {
+    try {
+      await settings.save({ autoSync: true });
+      toasts.success("Auto-sync clipboard is on");
+    } catch (err) {
+      toasts.error(`Could not turn on auto-sync: ${errorMessage(err)}`);
+    }
+  }
 
   async function refresh() {
     try {
@@ -57,7 +80,7 @@
   <header class="mb-5 flex flex-wrap items-start justify-between gap-x-4 gap-y-3 sm:mb-6">
     <div>
       <h1 class={pageTitle}>Devices</h1>
-      <p class={pageSubtitle}>Devices on your network running nearclip.</p>
+      <p class={pageSubtitle}>Devices paired with this one on your local network.</p>
     </div>
     <div class="flex w-full gap-2 sm:w-auto sm:shrink-0">
       {#if settings.isDesktop}
@@ -90,17 +113,21 @@
 
   <AddByAddressDialog bind:open={addOpen} />
 
-  {#if devices.list.length === 0}
+  {#if !hasDevices}
     <div
       class="flex flex-col items-center rounded-lg border border-dashed border-neutral-300 px-5 py-10 text-center sm:px-6 sm:py-14 dark:border-neutral-700"
     >
-      <WifiOff class="size-8 text-neutral-400" aria-hidden="true" />
-      <h2 class="mt-4 text-sm font-medium">No devices found yet</h2>
+      <MonitorSmartphone class="size-8 text-neutral-400" aria-hidden="true" />
+      <h2 class="mt-4 text-sm font-medium">No devices yet</h2>
       <p class="mt-1 max-w-xs text-sm text-neutral-500 dark:text-neutral-400">
-        Open nearclip on another device connected to the same Wi-Fi network. It should appear
-        here within a few seconds.
-        {#if !settings.isDesktop}
-          Keep the app open on this phone to receive text.
+        {#if settings.isDesktop}
+          Click Show QR code and scan it with nearclip on your phone, or use Add by IP to pair
+          with another computer.
+        {:else}
+          Open nearclip on your computer, click Show QR code there, then tap Scan QR code here.
+        {/if}
+        {#if showAvailable}
+          Devices on the same Wi-Fi also show up here on their own.
         {/if}
       </p>
     </div>
@@ -110,7 +137,7 @@
         <h2 id="paired-heading" class="{sectionTitle} mb-2">Paired</h2>
         {#if devices.paired.length === 0}
           <p class="text-sm text-neutral-500 dark:text-neutral-400">
-            No paired devices. Pair one from the list below.
+            No paired devices yet. Pair one from the list below.
           </p>
         {:else}
           <ul class="flex flex-col gap-2">
@@ -126,29 +153,70 @@
             {/each}
           </ul>
         {/if}
-      </section>
 
-      <section aria-labelledby="available-heading">
-        <h2 id="available-heading" class="{sectionTitle} mb-2">Available</h2>
-        {#if devices.available.length === 0}
-          <p class="text-sm text-neutral-500 dark:text-neutral-400">
-            No unpaired devices on the network right now.
-          </p>
-        {:else}
-          <ul class="flex flex-col gap-2">
-            {#each devices.available as device (device.deviceId)}
-              <li>
-                <DeviceCard
-                  {device}
-                  onPair={pair}
-                  onUnpair={unpair}
-                  onSend={(d) => onSend(d.deviceId)}
-                />
-              </li>
-            {/each}
-          </ul>
+        {#if showAutoSyncTip}
+          <div class="{card} mt-3 flex flex-col gap-3 p-4 sm:flex-row sm:items-start sm:gap-4">
+            <div
+              class="flex size-9 shrink-0 items-center justify-center rounded-full bg-blue-50 dark:bg-blue-950/60"
+            >
+              <ClipboardCopy class="size-4 text-blue-600" aria-hidden="true" />
+            </div>
+            <div class="min-w-0 flex-1">
+              <h3 class="text-sm font-medium">Send what you copy, automatically</h3>
+              <p class="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
+                {#if settings.isDesktop}
+                  Turn on Auto-sync clipboard and every text you copy on this computer is sent to
+                  your paired devices. Nothing to paste, nothing to click.
+                {:else}
+                  Turn on Auto-sync clipboard and every time you open nearclip, what you last copied
+                  is sent to your paired devices.
+                {/if}
+              </p>
+              <div class="mt-3 flex gap-2">
+                <button
+                  type="button"
+                  class={btn.primary}
+                  onclick={enableAutoSync}
+                  disabled={settings.saving}
+                >
+                  Turn on
+                </button>
+                <button
+                  type="button"
+                  class={btn.secondary}
+                  onclick={() => (autoSyncTipDismissed = true)}
+                >
+                  Not now
+                </button>
+              </div>
+            </div>
+          </div>
         {/if}
       </section>
+
+      {#if showAvailable}
+        <section aria-labelledby="available-heading">
+          <h2 id="available-heading" class="{sectionTitle} mb-2">Available</h2>
+          {#if devices.available.length === 0}
+            <p class="text-sm text-neutral-500 dark:text-neutral-400">
+              No unpaired devices on the network right now.
+            </p>
+          {:else}
+            <ul class="flex flex-col gap-2">
+              {#each devices.available as device (device.deviceId)}
+                <li>
+                  <DeviceCard
+                    {device}
+                    onPair={pair}
+                    onUnpair={unpair}
+                    onSend={(d) => onSend(d.deviceId)}
+                  />
+                </li>
+              {/each}
+            </ul>
+          {/if}
+        </section>
+      {/if}
       {#if !settings.isDesktop}
         <p class="text-xs text-neutral-500 dark:text-neutral-400">
           Keep the app open on this phone to receive text.

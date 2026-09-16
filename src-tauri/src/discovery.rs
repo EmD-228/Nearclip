@@ -11,7 +11,29 @@ use crate::error::Result;
 use crate::protocol::{PROTO_VERSION, SERVICE_TYPE};
 use crate::state::{AppState, DiscoveredDevice};
 
-pub fn start(app: &AppHandle, port: u16) -> Result<ServiceDaemon> {
+/// Starts or stops mDNS according to the "Automatic discovery" setting.
+pub fn set_enabled(app: &AppHandle, enabled: bool) {
+    let state = app.state::<AppState>();
+    let mut slot = state.discovery.lock().unwrap();
+    if enabled {
+        if slot.is_none() {
+            let port = state.listen_port.load(std::sync::atomic::Ordering::Relaxed);
+            match start(app, port) {
+                Ok(daemon) => *slot = Some(daemon),
+                Err(e) => log::error!("mDNS discovery failed to start: {e}"),
+            }
+        }
+        return;
+    }
+    if let Some(daemon) = slot.take() {
+        let _ = daemon.shutdown();
+        state.discovered.lock().unwrap().clear();
+        drop(slot);
+        emit_devices(app);
+    }
+}
+
+fn start(app: &AppHandle, port: u16) -> Result<ServiceDaemon> {
     let daemon = ServiceDaemon::new()?;
     daemon.register(service_info(app, port)?)?;
 
@@ -21,19 +43,25 @@ pub fn start(app: &AppHandle, port: u16) -> Result<ServiceDaemon> {
         while let Ok(event) = rx.recv_async().await {
             handle_event(&browse_app, event);
         }
-        log::warn!("mDNS browse channel closed");
+        log::debug!("mDNS browse stopped");
     });
+    log::info!("mDNS discovery on");
+    Ok(daemon)
+}
 
-    // Periodic refresh so stale devices drop off the UI even without a Removed event.
-    let tick_app = app.clone();
+/// Periodic refresh so stale discovered devices drop off the UI even without
+/// a Removed event. Idle while discovery is off.
+pub fn start_stale_sweep(app: &AppHandle) {
+    let app = app.clone();
     tauri::async_runtime::spawn(async move {
         loop {
             tokio::time::sleep(Duration::from_secs(30)).await;
-            emit_devices(&tick_app);
+            let running = app.state::<AppState>().discovery.lock().unwrap().is_some();
+            if running {
+                emit_devices(&app);
+            }
         }
     });
-
-    Ok(daemon)
 }
 
 fn service_info(app: &AppHandle, port: u16) -> Result<ServiceInfo> {

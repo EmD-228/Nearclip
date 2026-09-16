@@ -68,12 +68,14 @@
     desktopOnly?: boolean;
   }
 
-  const allToggles: ToggleDef[] = [
+  // Desktop watches the clipboard; mobile can only read it while the app is in the foreground.
+  let allToggles = $derived<ToggleDef[]>([
     {
       key: "autoSync",
       label: "Auto-sync clipboard",
-      description: "Send every copied text to paired devices automatically.",
-      desktopOnly: true,
+      description: settings.isDesktop
+        ? "Send every copied text to paired devices automatically."
+        : "Whenever you open nearclip, the text you last copied is sent to your paired devices. Android does not allow reading the clipboard in the background, so use the Send clipboard button in the nearclip notification or the Share menu from other apps.",
     },
     {
       key: "writeReceivedToClipboard",
@@ -97,7 +99,13 @@
       description: "Launch nearclip automatically when you sign in.",
       desktopOnly: true,
     },
-  ];
+    {
+      key: "discovery",
+      label: "Automatic discovery",
+      description:
+        "Finds devices on your Wi-Fi without pairing by QR code or IP address. Experimental: does not work on every network yet.",
+    },
+  ]);
 
   let toggles = $derived(allToggles.filter((t) => settings.isDesktop || !t.desktopOnly));
 </script>
@@ -178,8 +186,8 @@
       <h2 id="troubleshooting-heading" class="{sectionTitle} mb-2">Troubleshooting</h2>
       <div class="{card} px-4 py-3 text-sm text-neutral-600 dark:text-neutral-300">
         <p>
-          Devices only find each other on the same local network. If a device does not show up,
-          check that both computers are on the same Wi-Fi or wired network, and that your firewall
+          Devices only reach each other on the same local network. If pairing or sending fails,
+          check that both devices are on the same Wi-Fi or wired network, and that your firewall
           allows nearclip to accept incoming connections on the port listed above. Guest
           networks and some office networks block device-to-device traffic.
         </p>

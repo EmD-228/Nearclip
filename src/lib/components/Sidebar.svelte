@@ -41,12 +41,12 @@
       >
         <item.icon class="size-4 {active ? 'text-blue-600' : ''}" aria-hidden="true" />
         <span class="flex-1 text-left">{item.label}</span>
-        {#if item.id === "devices" && devices.onlineCount > 0}
+        {#if item.id === "devices" && devices.paired.length > 0}
           <span
-            class="rounded-full bg-green-100 px-1.5 py-px text-[11px] font-medium tabular-nums text-green-700 dark:bg-green-900/50 dark:text-green-300"
-            title="{devices.onlineCount} online"
+            class="rounded-full bg-neutral-200 px-1.5 py-px text-[11px] font-medium tabular-nums text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300"
+            title="{devices.paired.length} paired"
           >
-            {devices.onlineCount}
+            {devices.paired.length}
           </span>
         {/if}
       </button>
@@ -71,12 +71,12 @@
     >
       <span class="relative">
         <item.icon class="size-5" aria-hidden="true" />
-        {#if item.id === "devices" && devices.onlineCount > 0}
+        {#if item.id === "devices" && devices.paired.length > 0}
           <span
-            class="absolute -top-1.5 -right-2.5 min-w-4 rounded-full bg-green-600 px-1 text-center text-[10px] leading-4 font-semibold text-white"
-            title="{devices.onlineCount} online"
+            class="absolute -top-1.5 -right-2.5 min-w-4 rounded-full bg-neutral-500 px-1 text-center text-[10px] leading-4 font-semibold text-white dark:bg-neutral-600"
+            title="{devices.paired.length} paired"
           >
-            {devices.onlineCount}
+            {devices.paired.length}
           </span>
         {/if}
       </span>

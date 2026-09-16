@@ -8,6 +8,7 @@ use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 
 use crate::crypto;
 use crate::error::{AppError, Result};
+use crate::state::PairedVia;
 
 pub const PROTO_VERSION: u8 = 1;
 pub const DEFAULT_PORT: u16 = 47821;
@@ -32,6 +33,10 @@ pub enum Wire {
         /// confirm without comparing a code.
         #[serde(default)]
         token: Option<String>,
+        /// How the initiator found the responder, so both sides record the
+        /// same pairing method.
+        #[serde(default)]
+        via: Option<PairedVia>,
     },
     PairResponse {
         device_id: String,
@@ -89,6 +94,8 @@ pub enum Plain {
     PairAck {
         accepted: bool,
     },
+    /// The sender removed this pairing; the receiver should forget it too.
+    Unpair,
     Ping,
 }
 

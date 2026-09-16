@@ -124,10 +124,8 @@
       class="{input} min-w-0 flex-1 basis-full pr-8 sm:w-auto sm:min-w-48 sm:flex-none sm:basis-auto"
     >
       <option value="all">All paired devices</option>
-      {#each devices.pairedForSend as device (device.deviceId)}
-        <option value={device.deviceId} disabled={!device.online}>
-          {device.name}{device.online ? "" : " (offline)"}
-        </option>
+      {#each devices.paired as device (device.deviceId)}
+        <option value={device.deviceId}>{device.name}</option>
       {/each}
     </select>
 

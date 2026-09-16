@@ -85,6 +85,9 @@ class NearclipService : Service() {
       .setContentTitle("nearclip")
       .setContentText("Listening for text from your devices")
       .setContentIntent(open)
+      // Opening the app is enough: with auto-sync on, the Rust side sends the
+      // clipboard whenever the app gains focus (background reads are forbidden).
+      .addAction(0, "Send clipboard", open)
       .addAction(0, "Stop", stop)
       .setOngoing(true)
       .setSilent(true)

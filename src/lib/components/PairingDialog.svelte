@@ -118,7 +118,7 @@
           <CircleAlert class="size-10 text-red-600" aria-hidden="true" />
           <div>
             <h2 id={titleId} class="text-base font-semibold">Pairing failed</h2>
-            <p class="mt-1 text-sm break-words text-neutral-500 dark:text-neutral-400">
+            <p class="mt-1 text-sm wrap-break-word text-neutral-500 dark:text-neutral-400">
               {c.error ?? "Something went wrong while pairing with " + c.name + "."}
             </p>
           </div>

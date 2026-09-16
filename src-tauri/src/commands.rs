@@ -11,7 +11,7 @@ use crate::clipboard::ClipboardCmd;
 use crate::error::{AppError, Result};
 use crate::protocol::MAX_TEXT_BYTES;
 use crate::state::{
-    save_history, save_peers, save_settings, AppState, DeviceView, HistoryItem, SendResult,
+    forget_peer, save_history, save_settings, AppState, DeviceView, HistoryItem, SendResult,
     Settings,
 };
 use crate::{discovery, pairing, session, transport, tray};
@@ -85,13 +85,11 @@ pub fn cancel_pairing(app: AppHandle, device_id: String) -> Result<()> {
 }
 
 #[tauri::command]
-pub fn unpair(app: AppHandle, state: State<'_, AppState>, device_id: String) -> Result<()> {
-    {
-        let mut peers = state.peers.lock().unwrap();
-        peers.remove(&device_id);
-        save_peers(&app, &peers)?;
+pub fn unpair(app: AppHandle, device_id: String) -> Result<()> {
+    if let Some(peer) = forget_peer(&app, &device_id) {
+        // Let the other device drop the pairing too; fine if it is unreachable.
+        tauri::async_runtime::spawn(session::notify_unpair(app.clone(), peer));
     }
-    discovery::emit_devices(&app);
     Ok(())
 }
 
@@ -173,7 +171,9 @@ pub fn set_settings(
     if current.auto_sync && !previous.auto_sync {
         let _ = state.clipboard_tx.send(ClipboardCmd::ResetBaseline);
     }
-    if current.device_name != previous.device_name {
+    if current.discovery != previous.discovery {
+        discovery::set_enabled(&app, current.discovery);
+    } else if current.device_name != previous.device_name {
         discovery::re_announce(&app);
     }
     apply_settings_side_effects(&app, &current);

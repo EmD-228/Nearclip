@@ -10,7 +10,7 @@ use mdns_sd::ServiceDaemon;
 use serde::{Deserialize, Serialize};
 #[cfg(desktop)]
 use tauri::menu::CheckMenuItem;
-use tauri::AppHandle;
+use tauri::{AppHandle, Manager};
 #[cfg(desktop)]
 use tauri::Wry;
 use tauri_plugin_store::StoreExt;
@@ -33,6 +33,9 @@ pub struct Settings {
     pub notify_on_receive: bool,
     pub close_to_tray: bool,
     pub autostart: bool,
+    /// mDNS discovery. Off by default: unreliable on many Wi-Fi networks.
+    #[serde(default)]
+    pub discovery: bool,
 }
 
 impl Settings {
@@ -57,8 +60,19 @@ impl Settings {
             notify_on_receive: true,
             close_to_tray: true,
             autostart: false,
+            discovery: false,
         }
     }
+}
+
+/// How a pairing was established; shown instead of an online/offline state.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum PairedVia {
+    Discovery,
+    #[default]
+    Address,
+    Qr,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -70,6 +84,8 @@ pub struct PeerRecord {
     pub pairing_key: [u8; 32],
     pub paired_at: i64,
     pub last_seen_addr: Option<SocketAddr>,
+    #[serde(default)]
+    pub via: PairedVia,
 }
 
 #[derive(Debug, Clone)]
@@ -108,8 +124,9 @@ pub struct DeviceView {
     pub device_id: String,
     pub name: String,
     pub paired: bool,
-    pub online: bool,
     pub addr: Option<String>,
+    /// Set for paired devices only.
+    pub via: Option<PairedVia>,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
@@ -169,8 +186,11 @@ impl AppState {
                     .map(|d| d.name.clone())
                     .unwrap_or_else(|| peer.name.clone()),
                 paired: true,
-                online: disc.is_some(),
-                addr: disc.and_then(|d| d.best_addr()).map(|a| a.to_string()),
+                addr: disc
+                    .and_then(|d| d.best_addr())
+                    .or(peer.last_seen_addr)
+                    .map(|a| a.to_string()),
+                via: Some(peer.via),
             });
         }
         for (id, d) in discovered.iter() {
@@ -181,14 +201,13 @@ impl AppState {
                 device_id: id.clone(),
                 name: d.name.clone(),
                 paired: false,
-                online: true,
                 addr: d.best_addr().map(|a| a.to_string()),
+                via: None,
             });
         }
         out.sort_by(|a, b| {
             b.paired
                 .cmp(&a.paired)
-                .then(b.online.cmp(&a.online))
                 .then_with(|| a.name.to_lowercase().cmp(&b.name.to_lowercase()))
         });
         out
@@ -239,6 +258,25 @@ pub fn load_peers(app: &AppHandle) -> HashMap<String, PeerRecord> {
         .and_then(|v| serde_json::from_value(v).ok())
         .unwrap_or_default();
     list.into_iter().map(|p| (p.device_id.clone(), p)).collect()
+}
+
+/// Removes a pairing, persists the change and refreshes the device list.
+pub fn forget_peer(app: &AppHandle, device_id: &str) -> Option<PeerRecord> {
+    let state = app.state::<AppState>();
+    let removed = {
+        let mut peers = state.peers.lock().unwrap();
+        let removed = peers.remove(device_id);
+        if removed.is_some() {
+            if let Err(e) = save_peers(app, &peers) {
+                log::error!("saving peers failed: {e}");
+            }
+        }
+        removed
+    };
+    if removed.is_some() {
+        crate::discovery::emit_devices(app);
+    }
+    removed
 }
 
 pub fn save_peers(app: &AppHandle, peers: &HashMap<String, PeerRecord>) -> Result<()> {

@@ -27,7 +27,7 @@ use crate::protocol::{
     b64d_array, b64e, decrypt_wire, encrypt_plain, error_frame, read_frame, write_frame, Plain,
     Wire, DEFAULT_PORT, PROTO_VERSION,
 };
-use crate::state::{now_ms, save_peers, AppState, PeerRecord};
+use crate::state::{now_ms, save_peers, AppState, PairedVia, PeerRecord};
 use crate::{discovery, transport, tray};
 
 const PAIRING_TIMEOUT: Duration = Duration::from_secs(120);
@@ -119,6 +119,7 @@ pub fn start(app: AppHandle, device_id: String) -> Result<()> {
         Some(device_id),
         vec![addr],
         None,
+        PairedVia::Discovery,
     )
 }
 
@@ -135,6 +136,7 @@ pub fn start_by_address(app: AppHandle, addr_str: &str) -> Result<()> {
         None,
         vec![addr],
         None,
+        PairedVia::Address,
     )
 }
 
@@ -187,7 +189,18 @@ pub fn start_by_qr(app: AppHandle, payload: &str) -> Result<()> {
         Some(target.id),
         target.addrs,
         Some(target.auth),
+        PairedVia::Qr,
     )
+}
+
+/// The recorded pairing method: QR only when the token was actually verified;
+/// a QR attempt that fell back to the code comparison counts as by-address.
+fn paired_via(intent: PairedVia, verified_by_qr: bool) -> PairedVia {
+    match (verified_by_qr, intent) {
+        (true, _) => PairedVia::Qr,
+        (false, PairedVia::Qr) => PairedVia::Address,
+        (false, other) => other,
+    }
 }
 
 fn parse_qr(payload: &str) -> Result<QrTarget> {
@@ -248,6 +261,7 @@ fn spawn_initiator(
     expected_id: Option<String>,
     addrs: Vec<SocketAddr>,
     qr: Option<QrAuth>,
+    via: PairedVia,
 ) -> Result<()> {
     let state = app.state::<AppState>();
     let (confirm_tx, confirm_rx) = mpsc::channel(1);
@@ -277,6 +291,7 @@ fn spawn_initiator(
                 expected_id.as_deref(),
                 &addrs,
                 qr.as_ref(),
+                via,
                 confirm_rx,
             ),
         )
@@ -302,6 +317,7 @@ pub async fn respond(
         commit: commit_a,
         port: peer_port,
         token,
+        via: peer_via,
     } = first
     else {
         return Err(AppError::protocol("expected PairRequest"));
@@ -375,6 +391,7 @@ pub async fn respond(
             peer_pk,
             commit_a,
             token_ok,
+            peer_via,
             confirm_rx,
         ),
     )
@@ -406,6 +423,7 @@ async fn run_initiator(
     expected_id: Option<&str>,
     addrs: &[SocketAddr],
     qr: Option<&QrAuth>,
+    via: PairedVia,
     confirm_rx: mpsc::Receiver<bool>,
 ) -> Result<()> {
     let state = app.state::<AppState>();
@@ -429,6 +447,7 @@ async fn run_initiator(
             commit: b64e(&commit(&eph_a, &nonce_a)),
             port: state.listen_port.load(Ordering::Relaxed),
             token: qr.map(|q| q.token.clone()),
+            via: Some(via),
         },
     )
     .await?;
@@ -513,6 +532,7 @@ async fn run_initiator(
             pairing_key: material.pairing_key,
             paired_at: now_ms(),
             last_seen_addr: Some(addr),
+            via: paired_via(via, verified_by_qr),
         },
     );
     Ok(())
@@ -528,6 +548,7 @@ async fn run_responder(
     peer_pk: [u8; 32],
     commit_a: [u8; 32],
     token_ok: bool,
+    peer_via: Option<PairedVia>,
     confirm_rx: mpsc::Receiver<bool>,
 ) -> Result<()> {
     let state = app.state::<AppState>();
@@ -596,6 +617,7 @@ async fn run_responder(
             pairing_key: material.pairing_key,
             paired_at: now_ms(),
             last_seen_addr: Some(peer_addr),
+            via: paired_via(peer_via.unwrap_or_default(), token_ok),
         },
     );
     Ok(())
@@ -755,6 +777,7 @@ mod tests {
                 commit: b64e(&commit(&eph_a, &nonce_a)),
                 port: 0,
                 token: None,
+                via: None,
             },
         )
         .await?;

@@ -12,11 +12,6 @@ class DevicesStore {
 
   paired = $derived(this.list.filter((d) => d.paired).sort(byName));
   available = $derived(this.list.filter((d) => !d.paired).sort(byName));
-  onlineCount = $derived(this.list.filter((d) => d.online).length);
-  /** Paired devices, online ones first, then alphabetical. */
-  pairedForSend = $derived(
-    [...this.paired].sort((a, b) => Number(b.online) - Number(a.online) || byName(a, b)),
-  );
 
   set(devices: DeviceView[]) {
     this.list = devices;
