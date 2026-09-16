@@ -11,7 +11,7 @@ use crate::error::{AppError, Result};
 
 pub const PROTO_VERSION: u8 = 1;
 pub const DEFAULT_PORT: u16 = 47821;
-pub const SERVICE_TYPE: &str = "_copynapaste._tcp.local.";
+pub const SERVICE_TYPE: &str = "_nearclip._tcp.local.";
 pub const MAX_FRAME: usize = 2 * 1024 * 1024;
 pub const MAX_TEXT_BYTES: usize = 1024 * 1024;
 

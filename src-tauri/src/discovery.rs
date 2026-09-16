@@ -40,7 +40,7 @@ fn service_info(app: &AppHandle, port: u16) -> Result<ServiceInfo> {
     let state = app.state::<AppState>();
     let id = state.identity.device_id.clone();
     let name = state.settings.lock().unwrap().device_name.clone();
-    let host = format!("copynapaste-{}.local.", &id[..8]);
+    let host = format!("nearclip-{}.local.", &id[..8]);
 
     let mut props: HashMap<String, String> = HashMap::new();
     props.insert("id".into(), id.clone());

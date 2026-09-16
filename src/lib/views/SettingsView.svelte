@@ -94,7 +94,7 @@
     {
       key: "autostart",
       label: "Start at login",
-      description: "Launch copynapaste automatically when you sign in.",
+      description: "Launch nearclip automatically when you sign in.",
       desktopOnly: true,
     },
   ];
@@ -180,7 +180,7 @@
         <p>
           Devices only find each other on the same local network. If a device does not show up,
           check that both computers are on the same Wi-Fi or wired network, and that your firewall
-          allows copynapaste to accept incoming connections on the port listed above. Guest
+          allows nearclip to accept incoming connections on the port listed above. Guest
           networks and some office networks block device-to-device traffic.
         </p>
       </div>

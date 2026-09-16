@@ -1,4 +1,4 @@
-package com.edomatch.copynapaste
+package com.edomatch.nearclip
 
 import android.content.Context
 import android.net.wifi.WifiManager
@@ -18,7 +18,7 @@ class MainActivity : TauriActivity() {
     super.onCreate(savedInstanceState)
     applySafeAreaPadding()
     val wifi = applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
-    multicastLock = wifi.createMulticastLock("copynapaste-mdns").apply {
+    multicastLock = wifi.createMulticastLock("nearclip-mdns").apply {
       setReferenceCounted(false)
       acquire()
     }

@@ -1,5 +1,5 @@
 {
-  "name": "copynapaste",
+  "name": "nearclip",
   "version": "0.1.0",
   "description": "LAN-only encrypted clipboard sharing between your devices",
   "type": "module",

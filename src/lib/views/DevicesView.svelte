@@ -51,7 +51,7 @@
   <header class="mb-5 flex items-start justify-between gap-4 sm:mb-6">
     <div>
       <h1 class={pageTitle}>Devices</h1>
-      <p class={pageSubtitle}>Devices on your network running copynapaste.</p>
+      <p class={pageSubtitle}>Devices on your network running nearclip.</p>
     </div>
     <button
       type="button"
@@ -72,7 +72,7 @@
       <WifiOff class="size-8 text-neutral-400" aria-hidden="true" />
       <h2 class="mt-4 text-sm font-medium">No devices found yet</h2>
       <p class="mt-1 max-w-xs text-sm text-neutral-500 dark:text-neutral-400">
-        Open copynapaste on another device connected to the same Wi-Fi network. It should appear
+        Open nearclip on another device connected to the same Wi-Fi network. It should appear
         here within a few seconds.
         {#if !settings.isDesktop}
           Keep the app open on this phone to receive text.

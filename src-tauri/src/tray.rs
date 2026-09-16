@@ -12,7 +12,7 @@ pub fn build(app: &AppHandle) -> Result<()> {
     let state = app.state::<AppState>();
     let auto_sync = state.settings.lock().unwrap().auto_sync;
 
-    let show = MenuItem::with_id(app, "show", "Show copynapaste", true, None::<&str>)?;
+    let show = MenuItem::with_id(app, "show", "Show nearclip", true, None::<&str>)?;
     let sep1 = PredefinedMenuItem::separator(app)?;
     let autosync = CheckMenuItem::with_id(
         app,
@@ -34,7 +34,7 @@ pub fn build(app: &AppHandle) -> Result<()> {
 
     TrayIconBuilder::with_id("main")
         .icon(icon)
-        .tooltip("copynapaste")
+        .tooltip("nearclip")
         .menu(&menu)
         .show_menu_on_left_click(false)
         .on_menu_event(|app, event| match event.id().as_ref() {

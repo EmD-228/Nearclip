@@ -12,10 +12,10 @@ use sha2::{Digest, Sha256};
 
 use crate::error::{AppError, Result};
 
-pub const PAIR_TRANSCRIPT_PREFIX: &[u8] = b"copynapaste-pair-v1";
-const INFO_PAIRING_KEY: &[u8] = b"copynapaste pairing key v1";
-const INFO_SAS: &[u8] = b"copynapaste sas v1";
-const INFO_SESSION: &[u8] = b"copynapaste session v1";
+pub const PAIR_TRANSCRIPT_PREFIX: &[u8] = b"nearclip-pair-v1";
+const INFO_PAIRING_KEY: &[u8] = b"nearclip pairing key v1";
+const INFO_SAS: &[u8] = b"nearclip sas v1";
+const INFO_SESSION: &[u8] = b"nearclip session v1";
 
 pub fn random_bytes<const N: usize>() -> [u8; N] {
     let mut buf = [0u8; N];
