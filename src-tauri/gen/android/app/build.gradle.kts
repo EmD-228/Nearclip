@@ -1,3 +1,4 @@
+import java.io.File
 import java.util.Properties
 
 plugins {
@@ -6,12 +7,17 @@ plugins {
     id("rust")
 }
 
-val tauriProperties = Properties().apply {
-    val propFile = file("tauri.properties")
+fun loadProperties(propFile: File) = Properties().apply {
     if (propFile.exists()) {
         propFile.inputStream().use { load(it) }
     }
 }
+
+val tauriProperties = loadProperties(file("tauri.properties"))
+
+// Release signing. `keystore.properties` and the .jks live next to this project
+// and are gitignored; see README "Build installers" for how to create them.
+val keystoreProperties = loadProperties(rootProject.file("keystore.properties"))
 
 android {
     compileSdk = 36
@@ -19,10 +25,21 @@ android {
     defaultConfig {
         manifestPlaceholders["usesCleartextTraffic"] = "false"
         applicationId = "com.nearclip"
-        minSdk = 24
+        // 26+: notification channels and foreground services without API guards
+        minSdk = 26
         targetSdk = 36
         versionCode = tauriProperties.getProperty("tauri.android.versionCode", "1").toInt()
         versionName = tauriProperties.getProperty("tauri.android.versionName", "1.0")
+    }
+    signingConfigs {
+        if (keystoreProperties.containsKey("storeFile")) {
+            create("release") {
+                storeFile = rootProject.file(keystoreProperties["storeFile"] as String)
+                storePassword = keystoreProperties["storePassword"] as String
+                keyAlias = keystoreProperties["keyAlias"] as String
+                keyPassword = keystoreProperties["keyPassword"] as String
+            }
+        }
     }
     buildTypes {
         getByName("debug") {
@@ -37,6 +54,7 @@ android {
             }
         }
         getByName("release") {
+            signingConfigs.findByName("release")?.let { signingConfig = it }
             isMinifyEnabled = true
             proguardFiles(
                 *fileTree(".") { include("**/*.pro") }

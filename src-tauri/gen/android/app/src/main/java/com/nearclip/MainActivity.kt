@@ -1,27 +1,24 @@
 package com.nearclip
 
-import android.content.Context
-import android.net.wifi.WifiManager
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.view.View
 import androidx.activity.enableEdgeToEdge
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 
 class MainActivity : TauriActivity() {
-  // Android drops incoming multicast (mDNS) packets unless the app holds a
-  // MulticastLock. Without it the phone never discovers the other devices.
-  private var multicastLock: WifiManager.MulticastLock? = null
-
   override fun onCreate(savedInstanceState: Bundle?) {
     enableEdgeToEdge()
     super.onCreate(savedInstanceState)
     applySafeAreaPadding()
-    val wifi = applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
-    multicastLock = wifi.createMulticastLock("nearclip-mdns").apply {
-      setReferenceCounted(false)
-      acquire()
-    }
+    requestNotificationPermission()
+    // Keeps the listener alive in the background and holds the multicast lock.
+    NearclipService.start(this)
   }
 
   // Edge-to-edge draws the WebView under the status and navigation bars. Pad the
@@ -39,9 +36,13 @@ class MainActivity : TauriActivity() {
     }
   }
 
-  override fun onDestroy() {
-    multicastLock?.let { if (it.isHeld) it.release() }
-    multicastLock = null
-    super.onDestroy()
+  // Android 13+ only shows notifications (the background one and "received text")
+  // once the user has granted this runtime permission.
+  private fun requestNotificationPermission() {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
+    val permission = Manifest.permission.POST_NOTIFICATIONS
+    if (ContextCompat.checkSelfPermission(this, permission) != PackageManager.PERMISSION_GRANTED) {
+      ActivityCompat.requestPermissions(this, arrayOf(permission), 0)
+    }
   }
 }

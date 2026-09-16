@@ -1,18 +1,19 @@
 # nearclip
 
-nearclip is a LAN-only, end-to-end encrypted clipboard text sharing app for desktop, built with Tauri v2, Rust and Svelte 5. There is no server and no account: devices on the same local network discover each other with mDNS (`_nearclip._tcp.local.`), pair once by comparing a 6-digit code shown on both screens, and then exchange text over a direct TCP connection (port 47821, with an ephemeral fallback) encrypted with AES-256-GCM.
+nearclip is a LAN-only, end-to-end encrypted clipboard text sharing app for macOS, Windows and Android, built with Tauri v2, Rust and Svelte 5. There is no server and no account: devices on the same local network discover each other with mDNS (`_nearclip._tcp.local.`), pair once by comparing a 6-digit code shown on both screens, and then exchange text over a direct TCP connection (port 47821, with an ephemeral fallback) encrypted with AES-256-GCM.
 
 ## Features (MVP)
 
-- Send text manually to one paired device or to all of them.
-- Optional auto-sync: every text you copy is sent to your paired devices.
+- Send text manually to one paired device or to all of them, with a Paste button to grab the current clipboard.
+- Optional auto-sync (desktop only): every text you copy is sent to your paired devices.
 - History of sent and received items, with one-click copy.
 - Write received text straight to the local clipboard (toggle).
-- Tray icon with close-to-tray behaviour.
-- Start at login (autostart).
+- Add a device by IP address when the network blocks mDNS discovery.
+- Android: "Share to nearclip" from any app's share sheet; the text lands in the Send view.
+- Desktop: tray icon with close-to-tray behaviour, start at login (autostart).
 - System notifications when text is received.
 
-Text only, up to 1 MB per message. Files and mobile platforms are out of scope for now.
+Text only, up to 1 MB per message. Files are out of scope for now. On Android a persistent "Listening for text" notification keeps the app receiving in the background; its Stop button pauses that until the app is next opened.
 
 ## Requirements
 
@@ -21,6 +22,14 @@ Text only, up to 1 MB per message. Files and mobile platforms are out of scope f
 - pnpm 10
 - macOS: Xcode Command Line Tools (`xcode-select --install`)
 - Windows: Visual Studio C++ Build Tools and the WebView2 runtime (preinstalled on Windows 10/11)
+- Android: Android Studio with an SDK (platform 36) and an NDK, plus the Rust targets:
+
+```sh
+rustup target add aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android
+export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"   # bundled JDK 21
+export ANDROID_HOME="$HOME/Library/Android/sdk"
+export NDK_HOME="$ANDROID_HOME/ndk/<version>"
+```
 
 ## Development
 
@@ -52,6 +61,18 @@ pnpm dev:2
 
 The two windows then discover each other on the loopback network and can be paired like two real devices.
 
+### Android
+
+The generated Android project in `src-tauri/gen/android` is committed because it carries hand-made additions that `pnpm tauri android init` would wipe: `NearclipService.kt` (foreground service that keeps the listener alive in the background and holds the multicast lock, without which Android drops mDNS packets), the system-bar and keyboard insets plus the notification permission request in `MainActivity.kt`, and in `AndroidManifest.xml` the network and foreground-service permissions, the `<service>` entry and the share-sheet intent filter. `build.gradle.kts` also has the release signing block and `minSdk = 26`. If you ever regenerate the project, reapply those from git history.
+
+```sh
+# debug APK for an arm64 phone (large: unstripped, debuggable)
+pnpm tauri android build --debug --target aarch64 --apk --split-per-abi
+# -> src-tauri/gen/android/app/build/outputs/apk/arm64/debug/app-arm64-debug.apk
+```
+
+Install it with `adb install -r <apk>`, or serve it on the LAN (`python3 -m http.server` in the APK folder) and download it from the phone's browser. `pnpm tauri android dev` also works with a phone connected over adb.
+
 ## Tests and checks
 
 ```sh
@@ -72,6 +93,29 @@ pnpm tauri build
 This produces a `.dmg` on macOS and NSIS / MSI installers on Windows. Windows installers must be built on Windows.
 
 Code signing and notarization are not configured yet. On macOS, users need to right-click the app and choose Open the first time. On Windows, SmartScreen shows a warning that must be dismissed with "More info" then "Run anyway".
+
+### Android release APK
+
+Release builds are signed with a keystore that is not in git. Create it once:
+
+```sh
+cd src-tauri/gen/android
+keytool -genkeypair -v -keystore nearclip-release.jks -alias nearclip \
+  -keyalg RSA -keysize 2048 -validity 10000
+cat > keystore.properties <<EOF
+storeFile=nearclip-release.jks
+storePassword=<password>
+keyAlias=nearclip
+keyPassword=<password>
+EOF
+```
+
+Back up the `.jks` and its password: every future update must be signed with the same key or Android refuses to install it over the previous version. Then:
+
+```sh
+pnpm tauri android build --target aarch64 --apk --split-per-abi
+# -> src-tauri/gen/android/app/build/outputs/apk/arm64/release/app-arm64-release.apk
+```
 
 ## Security model
 
