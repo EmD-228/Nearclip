@@ -36,8 +36,10 @@ android {
             create("release") {
                 storeFile = rootProject.file(keystoreProperties["storeFile"] as String)
                 storePassword = keystoreProperties["storePassword"] as String
-                keyAlias = keystoreProperties["keyAlias"] as String
-                keyPassword = keystoreProperties["keyPassword"] as String
+                // The README recipe fixes the alias, and a PKCS12 keystore shares one
+                // password, so only storeFile and storePassword are required.
+                keyAlias = keystoreProperties.getProperty("keyAlias", "nearclip")
+                keyPassword = keystoreProperties.getProperty("keyPassword", storePassword)
             }
         }
     }

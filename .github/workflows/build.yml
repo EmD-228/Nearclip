@@ -1,0 +1,137 @@
+# Checks every push and pull request on Linux. Builds the installers on
+# pushes to main (artifacts hang off the run) and publishes a GitHub release
+# on v* tags. This is how the project gets Windows builds without a Windows
+# machine.
+#
+# macOS bundles are ad hoc signed, Windows ones unsigned (see README). The
+# Android APK is signed only when the repository has the secrets
+# ANDROID_KEYSTORE_B64 (base64 of the .jks) and ANDROID_KEYSTORE_PASSWORD;
+# otherwise the job builds an unsigned APK as a compile check.
+name: Build
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm check
+      - run: cargo test --manifest-path src-tauri/Cargo.toml
+
+  desktop:
+    if: github.event_name != 'pull_request'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            bundles: dmg
+            files: src-tauri/target/release/bundle/dmg/*.dmg
+          - os: windows-latest
+            bundles: nsis
+            files: src-tauri/target/release/bundle/nsis/*.exe
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm tauri build --bundles ${{ matrix.bundles }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nearclip-${{ runner.os }}
+          path: ${{ matrix.files }}
+          if-no-files-found: error
+
+  android:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    env:
+      NDK_VERSION: 28.2.13676358
+      APK_FILES: src-tauri/gen/android/app/build/outputs/apk/**/release/*.apk
+    steps:
+      - uses: actions/checkout@v4
+      - env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        if: env.KEYSTORE_B64 != ''
+        run: |
+          echo "$KEYSTORE_B64" | base64 -d > src-tauri/gen/android/nearclip-release.jks
+          printf 'storeFile=nearclip-release.jks\nstorePassword=%s\n' "$KEYSTORE_PASSWORD" > src-tauri/gen/android/keystore.properties
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+      # The runner image ships this NDK; the install only runs if that changes.
+      - run: test -d "$ANDROID_HOME/ndk/$NDK_VERSION" || "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;$NDK_VERSION"
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm tauri android build --apk --target aarch64
+        env:
+          NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/${{ env.NDK_VERSION }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nearclip-android-arm64
+          path: ${{ env.APK_FILES }}
+          if-no-files-found: error
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [desktop, android]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: nearclip-*
+          merge-multiple: true
+          path: dist
+      # `*-release.apk` leaves out an unsigned `*-release-unsigned.apk`.
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/*.dmg
+            dist/*.exe
+            dist/*-release.apk

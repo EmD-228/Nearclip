@@ -93,7 +93,7 @@ pnpm build
 pnpm tauri build
 ```
 
-This produces a `.dmg` on macOS and NSIS / MSI installers on Windows (built on Windows). For your own Mac, `pnpm tauri build --bundles app` skips the dmg packaging and leaves `NearClip.app` in `src-tauri/target/release/bundle/macos/`, ready to copy to `/Applications`. Installers are not notarized or trust-signed: on macOS, right-click the app and choose Open the first time; on Windows, dismiss SmartScreen with "More info" then "Run anyway".
+This produces a `.dmg` on macOS and NSIS / MSI installers on Windows (built on Windows). GitHub Actions builds every installer too; the triggers, release rule and Android signing secrets are documented at the top of `.github/workflows/build.yml`. For your own Mac, `pnpm tauri build --bundles app` skips the dmg packaging and leaves `NearClip.app` in `src-tauri/target/release/bundle/macos/`, ready to copy to `/Applications`. Installers are not notarized or trust-signed: on macOS, right-click the app and choose Open the first time; on Windows, dismiss SmartScreen with "More info" then "Run anyway".
 
 ### macOS signing
 
@@ -114,8 +114,6 @@ keytool -genkeypair -v -keystore nearclip-release.jks -alias nearclip \
 cat > keystore.properties <<EOF
 storeFile=nearclip-release.jks
 storePassword=<password>
-keyAlias=nearclip
-keyPassword=<password>
 EOF
 ```
 

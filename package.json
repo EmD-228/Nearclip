@@ -4,6 +4,7 @@
   "description": "LAN-only encrypted clipboard sharing between your devices",
   "type": "module",
   "private": true,
+  "packageManager": "pnpm@10.28.2",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
