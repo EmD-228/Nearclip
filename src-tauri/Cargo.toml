@@ -26,7 +26,7 @@ serde_json = "1"
 tauri-plugin-store = "2"
 tauri-plugin-notification = "2"
 tauri-plugin-log = "2"
-tokio = { version = "1.53.1", features = ["net", "io-util", "time", "sync", "macros", "rt-multi-thread"] }
+tokio = { version = "1.53", features = ["net", "io-util", "time", "sync", "macros", "rt-multi-thread"] }
 mdns-sd = "0.21.3"
 aes-gcm = "0.11.1"
 hkdf = "0.13.0"
@@ -34,12 +34,12 @@ sha2 = "0.11.0"
 getrandom = "0.4.3"
 hex = "0.4.3"
 base64 = "0.23.1"
-thiserror = "2.0.20"
+thiserror = "2.0"
 hostname = "0.4.2"
-log = "0.4.34"
+log = "0.4"
 ed25519-dalek = { version = "3.0.0", features = ["serde"] }
 x25519-dalek = { version = "3.0.0", features = ["getrandom", "static_secrets"] }
-uuid = { version = "1.26.1", features = ["v4", "serde"] }
+uuid = { version = "1.26", features = ["v4", "serde"] }
 if-addrs = "0.15.0"
 tauri-plugin-clipboard-manager = "2"
 qrcode = { version = "0.14", default-features = false, features = ["svg"] }

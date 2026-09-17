@@ -76,9 +76,9 @@ pub fn run() {
 
     #[cfg(desktop)]
     {
+        // On macOS the plugin defaults to a Launch Agent.
         builder = builder.plugin(
             tauri_plugin_autostart::Builder::new()
-                .macos_launcher(tauri_plugin_autostart::MacosLauncher::LaunchAgent)
                 .args(["--minimized"])
                 .build(),
         );

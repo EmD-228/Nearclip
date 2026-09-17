@@ -82,13 +82,13 @@ Install it with `adb install -r <apk>`, or serve it on the LAN (`python3 -m http
 
 ## Tests and checks
 
-```sh
-# Rust
-cd src-tauri && cargo test && cargo clippy --all-targets
+The same four commands gate every pull request in CI (`.github/workflows/build.yml`, job `check`):
 
-# Frontend
+```sh
 pnpm check
-pnpm build
+cargo fmt --manifest-path src-tauri/Cargo.toml -- --check
+cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
+cargo test --manifest-path src-tauri/Cargo.toml
 ```
 
 ## Building installers
@@ -128,6 +128,10 @@ pnpm tauri android build --target aarch64 --apk --split-per-abi
 # -> src-tauri/gen/android/app/build/outputs/apk/arm64/release/app-arm64-release.apk
 ```
 
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md); security reports go through [SECURITY.md](SECURITY.md).
+
 ## Security model
 
 - Each device has a long-lived Ed25519 identity key. The fingerprint shown in Settings is derived from its public key.
@@ -136,6 +140,7 @@ pnpm tauri android build --target aarch64 --apk --split-per-abi
 - A 6-digit short authentication string (SAS) is derived from that transcript and displayed on both screens. Pairing only completes when both users confirm the codes match, which defeats an active man-in-the-middle on the local network.
 - QR pairing replaces the code comparison with a visual channel: the QR carries the computer's public key and a one-time token valid for 5 minutes. The phone checks the key it connects to against the QR, the computer checks the token, and both sides then confirm on their own.
 - Every connection after pairing derives a fresh per-connection session key from the paired secret. Payloads are encrypted with AES-256-GCM.
+- NearClip hides the text, not the traffic: anyone on the network can see that two devices talk, and when.
 - The identity seed and the pairing keys are sealed with AES-256-GCM inside the JSON files under the app data directory (macOS: `~/Library/Application Support/com.nearclip/`). The 32-byte master key lives in the OS credential store on desktop (macOS Keychain, Windows Credential Manager, Secret Service on Linux) and in an app-private file on Android.
 
 ## Troubleshooting
