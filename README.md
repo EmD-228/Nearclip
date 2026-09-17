@@ -175,4 +175,4 @@ A clipboard with a proximity signal on a blue gradient. The SVG sources are in `
 pnpm tauri icon design/icons/icon-manifest.json
 ```
 
-Not in the manifest: `src-tauri/icons/tray.png` (macOS menu bar), regenerated with `pnpm tauri icon design/icons/nearclip-tray.svg -o /tmp/tray -p 72`, and the hand-written `res/drawable/ic_notification.xml` (Android status bar).
+Not in the manifest: `src-tauri/icons/tray.png` (macOS menu bar), regenerated with `pnpm tauri icon design/icons/nearclip-tray.svg -o /tmp/tray -p 72`, and the hand-written `res/drawable/ic_notification.xml` (Android status bar, referenced by name from the foreground service and from the notifications built in `session.rs`; the notification plugin does not accept a config block).

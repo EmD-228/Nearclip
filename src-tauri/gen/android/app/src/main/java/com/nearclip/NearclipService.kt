@@ -84,7 +84,7 @@ class NearclipService : Service() {
     )
     return NotificationCompat.Builder(this, CHANNEL_ID)
       .setSmallIcon(R.drawable.ic_notification)
-      // Same accent as plugins.notification.iconColor in tauri.conf.json.
+      // Same accent as the received-text notifications built in session.rs.
       .setColor(0xFF2563EB.toInt())
       .setContentTitle(getString(R.string.app_name))
       .setContentText("Listening for text from your devices")

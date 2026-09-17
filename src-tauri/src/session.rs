@@ -345,11 +345,15 @@ fn deliver_received(
     let _ = app.emit("clipboard-received", &item);
     if notify {
         let preview: String = text.chars().take(120).collect();
-        let _ = app
+        let notification = app
             .notification()
             .builder()
             .title(format!("Received from {peer_name}"))
-            .body(preview)
-            .show();
+            .body(preview);
+        // Android status bar icon (a drawable name) and its tint; the plugin
+        // falls back to the generic info icon otherwise. Desktop uses the app icon.
+        #[cfg(mobile)]
+        let notification = notification.icon("ic_notification").icon_color("#2563eb");
+        let _ = notification.show();
     }
 }
