@@ -14,7 +14,7 @@ use crate::state::{
     forget_peer, save_history, save_settings, AppState, DeviceView, HistoryItem, SendResult,
     Settings,
 };
-use crate::{discovery, pairing, session, transport, tray};
+use crate::{discovery, pairing, session, transfer, transport, tray};
 
 const MAX_NAME_LEN: usize = 48;
 
@@ -102,6 +102,35 @@ pub async fn send_text(app: AppHandle, target: String, text: String) -> Result<V
         return Err(AppError::msg("Text is too large (1 MB max)"));
     }
     Ok(session::send_text(app, target, text).await)
+}
+
+/// Announces a file to `target` ("all" or a device id). Returns the transfer id
+/// the frontend then feeds with `send_file_chunk` and closes with `send_file_end`.
+#[tauri::command]
+pub async fn send_file_begin(
+    app: AppHandle,
+    target: String,
+    name: String,
+    size: u64,
+    mime: String,
+) -> Result<String> {
+    transfer::begin(&app, target, name, size, mime).await
+}
+
+/// One base64 chunk of at most 512 KiB. Returns the bytes sent so far.
+#[tauri::command]
+pub async fn send_file_chunk(app: AppHandle, id: String, data: String) -> Result<u64> {
+    transfer::chunk(&app, &id, data).await
+}
+
+#[tauri::command]
+pub async fn send_file_end(app: AppHandle, id: String) -> Result<Vec<SendResult>> {
+    transfer::end(&app, &id).await
+}
+
+#[tauri::command]
+pub fn send_file_abort(app: AppHandle, id: String) {
+    transfer::abort(&app, &id);
 }
 
 #[tauri::command]

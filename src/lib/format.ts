@@ -36,6 +36,19 @@ export function appendDraft(draft: string, incoming: string): string {
   return draft.endsWith("\n") ? draft + incoming : `${draft}\n${incoming}`;
 }
 
+/** 1536 -> "1.5 KB", 5_300_000 -> "5.1 MB" (binary units, as file managers show). */
+export function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  const units = ["KB", "MB", "GB"];
+  let value = bytes / 1024;
+  let unit = 0;
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024;
+    unit += 1;
+  }
+  return `${value < 10 ? value.toFixed(1) : Math.round(value)} ${units[unit]}`;
+}
+
 export function plural(n: number, singular: string, pluralForm = `${singular}s`): string {
   return `${n} ${n === 1 ? singular : pluralForm}`;
 }

@@ -1,6 +1,6 @@
 {
   "name": "nearclip",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "LAN-only encrypted clipboard sharing between your devices",
   "type": "module",
   "private": true,

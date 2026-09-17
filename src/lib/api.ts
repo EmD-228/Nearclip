@@ -32,6 +32,13 @@ export const api = {
 
   sendText: (target: SendTarget, text: string) =>
     invoke<SendResult[]>("send_text", { target, text }),
+  /** Announces a file; resolves to a transfer id once at least one device accepted it. */
+  sendFileBegin: (target: SendTarget, name: string, size: number, mime: string) =>
+    invoke<string>("send_file_begin", { target, name, size, mime }),
+  /** One base64 chunk of at most 512 KiB; resolves to the bytes sent so far. */
+  sendFileChunk: (id: string, data: string) => invoke<number>("send_file_chunk", { id, data }),
+  sendFileEnd: (id: string) => invoke<SendResult[]>("send_file_end", { id }),
+  sendFileAbort: (id: string) => invoke<void>("send_file_abort", { id }),
   copyToClipboard: (text: string) => invoke<void>("copy_to_clipboard", { text }),
   /** Current clipboard text ("" when empty or not text). On mobile only works while the app is in the foreground. */
   readClipboard: () => invoke<string>("read_clipboard"),

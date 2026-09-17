@@ -25,6 +25,9 @@ pub enum AppError {
     DeviceUnavailable,
     #[error("Protocol error: {0}")]
     Protocol(String),
+    /// An error frame the other device sent, e.g. `too_large`.
+    #[error("{msg} ({code})")]
+    Remote { code: String, msg: String },
     #[error("Operation timed out")]
     Timeout,
     #[error("Pairing was rejected")]

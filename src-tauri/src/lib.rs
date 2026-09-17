@@ -9,6 +9,7 @@ mod protocol;
 mod secrets;
 mod session;
 mod state;
+mod transfer;
 mod transport;
 #[cfg(desktop)]
 mod tray;
@@ -107,6 +108,7 @@ pub fn run() {
                 listen_port: AtomicU16::new(0),
                 clipboard_tx,
                 discovery: Mutex::new(None),
+                outgoing: Mutex::new(HashMap::new()),
                 #[cfg(desktop)]
                 tray_autosync: Mutex::new(None),
             });
@@ -174,6 +176,10 @@ pub fn run() {
             commands::cancel_pairing,
             commands::unpair,
             commands::send_text,
+            commands::send_file_begin,
+            commands::send_file_chunk,
+            commands::send_file_end,
+            commands::send_file_abort,
             commands::copy_to_clipboard,
             commands::read_clipboard,
             commands::pair_by_address,

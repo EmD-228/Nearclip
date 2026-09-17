@@ -34,10 +34,22 @@ export interface HistoryItem {
   direction: Direction;
   peerId: string;
   peerName: string;
+  /** Empty for a file transfer */
   text: string;
   /** Unix epoch milliseconds */
   tsMs: number;
   ok: boolean;
+  file?: FileMeta;
+}
+
+export interface FileMeta {
+  name: string;
+  /** Bytes */
+  size: number;
+  /** MIME type as reported by the sender, may be empty */
+  mime: string;
+  /** Where a received file was saved; absent for sent files */
+  path?: string;
 }
 
 export interface Settings {
