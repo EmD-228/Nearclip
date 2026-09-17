@@ -83,8 +83,9 @@ class NearclipService : Service() {
       PendingIntent.FLAG_IMMUTABLE,
     )
     return NotificationCompat.Builder(this, CHANNEL_ID)
-      // Status-bar icons are alpha masks: use the white glyph, not the full-colour launcher icon.
-      .setSmallIcon(R.mipmap.ic_launcher_monochrome)
+      .setSmallIcon(R.drawable.ic_notification)
+      // Same accent as plugins.notification.iconColor in tauri.conf.json.
+      .setColor(0xFF2563EB.toInt())
       .setContentTitle(getString(R.string.app_name))
       .setContentText("Listening for text from your devices")
       .setContentIntent(open)

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Status bar icon: the NearClip glyph as an alpha mask (Android tints it). Same shapes as design/icons/nearclip-android-foreground.svg. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="1024"
+    android:viewportHeight="1024">
+    <group
+        android:scaleX="1.25"
+        android:scaleY="1.25"
+        android:pivotX="512"
+        android:pivotY="540">
+        <path
+            android:pathData="M332,250 H692 A70,70 0 0 1 762,320 V780 A70,70 0 0 1 692,850 H332 A70,70 0 0 1 262,780 V320 A70,70 0 0 1 332,250 Z"
+            android:strokeColor="#FFF"
+            android:strokeWidth="56"/>
+        <path
+            android:pathData="M450,202 H574 A48,48 0 0 1 622,250 V264 A48,48 0 0 1 574,312 H450 A48,48 0 0 1 402,264 V250 A48,48 0 0 1 450,202 Z"
+            android:fillColor="#FFF"/>
+        <path
+            android:pathData="M512,622 A38,38 0 1 1 512,698 A38,38 0 1 1 512,622 Z"
+            android:fillColor="#FFF"/>
+        <path
+            android:pathData="M414,562 A138,138 0 0 1 610,562 M350,498 A229,229 0 0 1 674,498"
+            android:strokeColor="#FFF"
+            android:strokeWidth="54"
+            android:strokeLineCap="round"/>
+    </group>
+</vector>

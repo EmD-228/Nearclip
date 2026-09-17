@@ -23,6 +23,12 @@
       "csp": null
     }
   },
+  "plugins": {
+    "notification": {
+      "icon": "ic_notification",
+      "iconColor": "#2563eb"
+    }
+  },
   "bundle": {
     "active": true,
     "targets": "all",

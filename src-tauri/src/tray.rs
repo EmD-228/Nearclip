@@ -4,7 +4,7 @@ use tauri::menu::{CheckMenuItem, IsMenuItem, Menu, MenuItem, PredefinedMenuItem}
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{AppHandle, Emitter, Manager, Wry};
 
-use crate::error::{AppError, Result};
+use crate::error::Result;
 use crate::state::{save_settings, AppState};
 use crate::{clipboard::ClipboardCmd, commands};
 
@@ -28,13 +28,18 @@ pub fn build(app: &AppHandle) -> Result<()> {
     let items: [&dyn IsMenuItem<Wry>; 5] = [&show, &sep1, &autosync, &sep2, &quit];
     let menu = Menu::with_items(app, &items)?;
 
+    // macOS recolours menu bar icons, so it gets a monochrome template.
+    #[cfg(target_os = "macos")]
+    let icon = tauri::include_image!("./icons/tray.png");
+    #[cfg(not(target_os = "macos"))]
     let icon = app
         .default_window_icon()
         .cloned()
-        .ok_or_else(|| AppError::msg("no default window icon"))?;
+        .ok_or_else(|| crate::error::AppError::msg("no default window icon"))?;
 
     TrayIconBuilder::with_id("main")
         .icon(icon)
+        .icon_as_template(true)
         .tooltip(name)
         .menu(&menu)
         .show_menu_on_left_click(false)

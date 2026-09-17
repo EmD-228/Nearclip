@@ -146,7 +146,9 @@ pub fn create_qr(app: &AppHandle) -> Result<PairQr> {
     let state = app.state::<AppState>();
     let addrs = transport::local_ipv4_addrs();
     if addrs.is_empty() {
-        return Err(AppError::msg("No network address found. Connect to Wi-Fi first."));
+        return Err(AppError::msg(
+            "No network address found. Connect to Wi-Fi first.",
+        ));
     }
     let port = state.listen_port.load(Ordering::Relaxed);
     let token = hex::encode(random_bytes::<16>());
@@ -213,7 +215,11 @@ fn parse_qr(payload: &str) -> Result<QrTarget> {
         match k {
             "a" => addrs = v.split(',').filter_map(|a| a.parse().ok()).collect(),
             "id" => id = Some(v.to_string()),
-            "pk" => pk = hex::decode(v).ok().and_then(|b| <[u8; 32]>::try_from(b).ok()),
+            "pk" => {
+                pk = hex::decode(v)
+                    .ok()
+                    .and_then(|b| <[u8; 32]>::try_from(b).ok())
+            }
             "t" => token = Some(v.to_string()),
             _ => {}
         }
@@ -452,31 +458,30 @@ async fn run_initiator(
     )
     .await?;
 
-    let (peer_id, peer_name, peer_pk, eph_b, nonce_b, token_ok) = match read_frame(&mut stream)
-        .await?
-    {
-        Wire::PairResponse {
-            device_id,
-            name,
-            id_pk,
-            eph,
-            nonce,
-            token_ok,
-        } => (
-            device_id,
-            name,
-            b64d_array::<32>(&id_pk)?,
-            b64d_array::<32>(&eph)?,
-            b64d_array::<32>(&nonce)?,
-            token_ok,
-        ),
-        Wire::Error { code, msg } => return Err(AppError::msg(format!("{msg} ({code})"))),
-        other => {
-            return Err(AppError::protocol(format!(
-                "expected PairResponse, got {other:?}"
-            )))
-        }
-    };
+    let (peer_id, peer_name, peer_pk, eph_b, nonce_b, token_ok) =
+        match read_frame(&mut stream).await? {
+            Wire::PairResponse {
+                device_id,
+                name,
+                id_pk,
+                eph,
+                nonce,
+                token_ok,
+            } => (
+                device_id,
+                name,
+                b64d_array::<32>(&id_pk)?,
+                b64d_array::<32>(&eph)?,
+                b64d_array::<32>(&nonce)?,
+                token_ok,
+            ),
+            Wire::Error { code, msg } => return Err(AppError::msg(format!("{msg} ({code})"))),
+            other => {
+                return Err(AppError::protocol(format!(
+                    "expected PairResponse, got {other:?}"
+                )))
+            }
+        };
     if expected_id.is_some_and(|id| id != peer_id)
         || device_id_from_pk(&peer_pk) != peer_id
         || qr.is_some_and(|q| q.pk != peer_pk)
@@ -520,7 +525,14 @@ async fn run_initiator(
     }
     // Only trust the peer's token_ok when we actually presented a QR token.
     let verified_by_qr = qr.is_some() && token_ok;
-    settle(app, key, &peer_name, &material.sas, Role::Initiator, verified_by_qr)?;
+    settle(
+        app,
+        key,
+        &peer_name,
+        &material.sas,
+        Role::Initiator,
+        verified_by_qr,
+    )?;
     confirm_phase(stream, confirm_rx, &material.pairing_key).await?;
 
     save_peer(
@@ -605,7 +617,14 @@ async fn run_responder(
         .to_bytes();
     let material = derive_pairing(&shared, &transcript);
 
-    settle(app, peer_id, peer_name, &material.sas, Role::Responder, token_ok)?;
+    settle(
+        app,
+        peer_id,
+        peer_name,
+        &material.sas,
+        Role::Responder,
+        token_ok,
+    )?;
     confirm_phase(stream, confirm_rx, &material.pairing_key).await?;
 
     save_peer(

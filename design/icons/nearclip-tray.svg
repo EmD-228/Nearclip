@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- macOS menu bar template icon: the glyph alone, black on transparent, filling the canvas; macOS recolours it. -->
+  <g transform="translate(512 540) scale(1.42) translate(-512 -540)">
+    <rect x="262" y="250" width="500" height="600" rx="70" fill="none" stroke="#000" stroke-width="56"/>
+    <rect x="402" y="202" width="220" height="110" rx="48"/>
+    <circle cx="512" cy="660" r="38"/>
+    <path d="M414 562 A138 138 0 0 1 610 562 M350 498 A229 229 0 0 1 674 498" fill="none" stroke="#000" stroke-width="54" stroke-linecap="round"/>
+  </g>
+</svg>

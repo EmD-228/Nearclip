@@ -10,9 +10,9 @@ use mdns_sd::ServiceDaemon;
 use serde::{Deserialize, Serialize};
 #[cfg(desktop)]
 use tauri::menu::CheckMenuItem;
-use tauri::{AppHandle, Manager};
 #[cfg(desktop)]
 use tauri::Wry;
+use tauri::{AppHandle, Manager};
 use tauri_plugin_store::StoreExt;
 
 use crate::clipboard::ClipboardCmd;
