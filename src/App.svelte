@@ -3,12 +3,13 @@
   import { isTauri } from "@tauri-apps/api/core";
   import type { UnlistenFn } from "@tauri-apps/api/event";
   import { events } from "./lib/api";
+  import AddByAddressDialog from "./lib/components/AddByAddressDialog.svelte";
   import ConfirmDialog from "./lib/components/ConfirmDialog.svelte";
   import PairingDialog from "./lib/components/PairingDialog.svelte";
   import PairQrDialog from "./lib/components/PairQrDialog.svelte";
   import ScanOverlay from "./lib/components/ScanOverlay.svelte";
   import { scanner } from "./lib/scan.svelte";
-  import { qr } from "./lib/stores/qr.svelte";
+  import { modals, qr } from "./lib/stores/dialogs.svelte";
   import Sidebar from "./lib/components/Sidebar.svelte";
   import Toast from "./lib/components/Toast.svelte";
   import { devices } from "./lib/stores/devices.svelte";
@@ -100,8 +101,9 @@
   });
 </script>
 
-<!-- While scanning, the camera shows through the transparent webview behind this layout. -->
-<div class="flex h-full min-h-0 {scanner.active ? 'invisible' : ''}">
+<!-- While scanning, the camera shows through the transparent webview behind this layout.
+     While a dialog is open, the layout is inert: no focus or clicks behind the modal. -->
+<div class="flex h-full min-h-0 {scanner.active ? 'invisible' : ''}" inert={modals.any}>
   <Sidebar {view} onNavigate={(v) => (view = v)} />
   <!-- Bottom padding below `sm` keeps content clear of the fixed tab bar (h-14 + safe area). -->
   <main
@@ -121,6 +123,7 @@
 
 <PairingDialog />
 <PairQrDialog />
+<AddByAddressDialog />
 <ScanOverlay />
 <ConfirmDialog />
 <Toast />

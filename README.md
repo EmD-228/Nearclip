@@ -152,7 +152,7 @@ src/                          Svelte 5 frontend
   lib/api.ts                  one function per Tauri command and per Rust event
   lib/types.ts                TypeScript mirrors of the Rust payload types
   lib/stores/                 rune-based stores (devices, history, settings, pairing, toasts, confirm)
-  lib/components/             Sidebar, DeviceCard, PairingDialog, Toast, Toggle, ConfirmDialog
+  lib/components/             Sidebar, DeviceCard, Modal and the dialogs built on it, Toast, Toggle
   lib/views/                  Devices, Send, History, Settings
 
 src-tauri/src/                Rust backend

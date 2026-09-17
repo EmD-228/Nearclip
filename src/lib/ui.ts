@@ -30,13 +30,14 @@ export const sectionTitle =
 /** Page wrapper: tighter padding on phones, desktop padding at `sm` and up. */
 export const page = "mx-auto max-w-2xl p-4 sm:p-8";
 
+/** Buttons fill the row on phones and take their natural width at `sm` and up. */
+export const btnFill = "flex-1 sm:flex-none";
+
+/** Secondary text: descriptions, hints, empty states. Margins stay at the call site. */
+export const muted = "text-sm text-neutral-500 dark:text-neutral-400";
+
 export const pageTitle = "text-lg font-semibold tracking-tight sm:text-xl";
 
-export const pageSubtitle = "mt-1 text-sm text-neutral-500 dark:text-neutral-400";
+export const pageSubtitle = `mt-1 ${muted}`;
 
-/** Modal backdrop and panel, sized to fit a 360px wide screen. */
-export const modalBackdrop =
-  "fixed inset-0 z-40 flex items-center justify-center bg-neutral-900/40 p-4 backdrop-blur-[2px] sm:p-6 dark:bg-black/60";
-
-export const modalPanel =
-  "w-full max-w-sm rounded-xl border border-neutral-200 bg-white p-5 shadow-2xl sm:p-6 dark:border-neutral-800 dark:bg-neutral-900";
+export const modalTitle = "text-base font-semibold";

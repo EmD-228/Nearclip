@@ -7,7 +7,7 @@
   import { history } from "../stores/history.svelte";
   import { errorMessage, toasts } from "../stores/toasts.svelte";
   import type { HistoryItem } from "../types";
-  import { btn, card, focusRing, page, pageSubtitle, pageTitle } from "../ui";
+  import { btn, card, focusRing, muted, page, pageSubtitle, pageTitle } from "../ui";
 
   // Ticks so relative times ("3m ago") stay fresh while the view is open.
   let now = $state(Date.now());
@@ -62,7 +62,7 @@
     >
       <History class="size-8 text-neutral-400" aria-hidden="true" />
       <h2 class="mt-4 text-sm font-medium">Nothing here yet</h2>
-      <p class="mt-1 max-w-xs text-sm text-neutral-500 dark:text-neutral-400">
+      <p class="mt-1 max-w-xs {muted}">
         Text you send or receive will show up here so you can copy it again later.
       </p>
     </div>

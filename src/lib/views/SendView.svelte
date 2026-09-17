@@ -7,7 +7,7 @@
   import { settings } from "../stores/settings.svelte";
   import { errorMessage, toasts } from "../stores/toasts.svelte";
   import type { SendTarget } from "../types";
-  import { btn, input, pageSubtitle, pageTitle } from "../ui";
+  import { btn, btnFill, input, pageSubtitle, pageTitle } from "../ui";
 
   interface Props {
     target?: SendTarget;
@@ -142,11 +142,11 @@
       <Eraser class="size-4" aria-hidden="true" />
       <span class="hidden sm:inline">Clear</span>
     </button>
-    <button type="button" class="{btn.secondary} flex-1 sm:flex-none" onclick={paste}>
+    <button type="button" class="{btn.secondary} {btnFill}" onclick={paste}>
       <ClipboardPaste class="size-4" aria-hidden="true" />
       Paste
     </button>
-    <button type="button" class="{btn.primary} flex-1 sm:flex-none" onclick={send} disabled={!canSend}>
+    <button type="button" class="{btn.primary} {btnFill}" onclick={send} disabled={!canSend}>
       <Send class="size-4" aria-hidden="true" />
       {sending ? "Sending…" : "Send"}
     </button>

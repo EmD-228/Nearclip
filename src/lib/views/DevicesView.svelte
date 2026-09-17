@@ -1,25 +1,22 @@
 <script lang="ts">
   import { ClipboardCopy, MonitorSmartphone, Plus, QrCode, RefreshCw, ScanLine } from "@lucide/svelte";
-  import AddByAddressDialog from "../components/AddByAddressDialog.svelte";
   import DeviceCard from "../components/DeviceCard.svelte";
   import { confirm } from "../stores/confirm.svelte";
   import { devices } from "../stores/devices.svelte";
+  import { addByAddress, qr } from "../stores/dialogs.svelte";
   import { scanPairingQr } from "../scan.svelte";
   import { pairing } from "../stores/pairing.svelte";
-  import { qr } from "../stores/qr.svelte";
   import { settings } from "../stores/settings.svelte";
   import { errorMessage, toasts } from "../stores/toasts.svelte";
   import type { DeviceView } from "../types";
   import { api } from "../api";
-  import { btn, card, page, pageSubtitle, pageTitle, sectionTitle } from "../ui";
+  import { btn, btnFill, card, muted, page, pageSubtitle, pageTitle, sectionTitle } from "../ui";
 
   interface Props {
     onSend: (deviceId: string) => void;
   }
 
   let { onSend }: Props = $props();
-
-  let addOpen = $state(false);
 
   // Without discovery only paired devices exist in the UI; unpaired ones are never listed.
   let showAvailable = $derived(settings.settings.discovery);
@@ -89,12 +86,12 @@
           Show QR code
         </button>
       {:else}
-        <button type="button" class="{btn.primary} flex-1 sm:flex-none" onclick={scanPairingQr}>
+        <button type="button" class="{btn.primary} {btnFill}" onclick={scanPairingQr}>
           <ScanLine class="size-4" aria-hidden="true" />
           Scan QR code
         </button>
       {/if}
-      <button type="button" class={btn.secondary} onclick={() => (addOpen = true)}>
+      <button type="button" class={btn.secondary} onclick={() => addByAddress.show()}>
         <Plus class="size-4" aria-hidden="true" />
         Add by IP
       </button>
@@ -111,15 +108,13 @@
     </div>
   </header>
 
-  <AddByAddressDialog bind:open={addOpen} />
-
   {#if !hasDevices}
     <div
       class="flex flex-col items-center rounded-lg border border-dashed border-neutral-300 px-5 py-10 text-center sm:px-6 sm:py-14 dark:border-neutral-700"
     >
       <MonitorSmartphone class="size-8 text-neutral-400" aria-hidden="true" />
       <h2 class="mt-4 text-sm font-medium">No devices yet</h2>
-      <p class="mt-1 max-w-xs text-sm text-neutral-500 dark:text-neutral-400">
+      <p class="mt-1 max-w-xs {muted}">
         {#if settings.isDesktop}
           Click Show QR code and scan it with NearClip on your phone, or use Add by IP to pair
           with another computer.
@@ -136,7 +131,7 @@
       <section aria-labelledby="paired-heading">
         <h2 id="paired-heading" class="{sectionTitle} mb-2">Paired</h2>
         {#if devices.paired.length === 0}
-          <p class="text-sm text-neutral-500 dark:text-neutral-400">
+          <p class={muted}>
             No paired devices yet. Pair one from the list below.
           </p>
         {:else}
@@ -163,7 +158,7 @@
             </div>
             <div class="min-w-0 flex-1">
               <h3 class="text-sm font-medium">Send what you copy, automatically</h3>
-              <p class="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
+              <p class="mt-1 {muted}">
                 {#if settings.isDesktop}
                   Turn on Auto-sync clipboard and every text you copy on this computer is sent to
                   your paired devices. Nothing to paste, nothing to click.
@@ -198,7 +193,7 @@
         <section aria-labelledby="available-heading">
           <h2 id="available-heading" class="{sectionTitle} mb-2">Available</h2>
           {#if devices.available.length === 0}
-            <p class="text-sm text-neutral-500 dark:text-neutral-400">
+            <p class={muted}>
               No unpaired devices on the network right now.
             </p>
           {:else}

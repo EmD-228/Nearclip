@@ -1,31 +1,11 @@
 <script lang="ts">
+  import { addByAddress } from "../stores/dialogs.svelte";
   import { pairing } from "../stores/pairing.svelte";
-  import { btn, input, modalBackdrop, modalPanel } from "../ui";
-
-  interface Props {
-    open: boolean;
-  }
-
-  let { open = $bindable(false) }: Props = $props();
+  import { btn, btnFill, input, modalTitle, muted } from "../ui";
+  import Modal from "./Modal.svelte";
 
   let address = $state("");
-  let field = $state<HTMLInputElement | null>(null);
-
-  const uid = $props.id();
-  const titleId = `${uid}-title`;
-  const helpId = `${uid}-help`;
-  const fieldId = `${uid}-address`;
-
-  $effect(() => {
-    if (open) {
-      address = "";
-      field?.focus();
-    }
-  });
-
-  function close() {
-    open = false;
-  }
+  const fieldId = $props.id();
 
   // The backend validates the address; a bad one comes back as a pairing error
   // shown by PairingDialog, so there is no second parser to keep in sync here.
@@ -33,31 +13,17 @@
     e.preventDefault();
     const addr = address.trim();
     if (!addr) return;
-    close();
+    addByAddress.close();
     void pairing.startByAddress(addr);
-  }
-
-  function onKeydown(e: KeyboardEvent) {
-    if (!open || e.key !== "Escape") return;
-    e.preventDefault();
-    close();
   }
 </script>
 
-<svelte:window onkeydown={onKeydown} />
-
-{#if open}
-  <div class={modalBackdrop} role="presentation">
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby={titleId}
-      aria-describedby={helpId}
-      class={modalPanel}
-    >
+{#if addByAddress.open}
+  <Modal onClose={() => addByAddress.close()} described>
+    {#snippet children({ titleId, descId })}
       <form onsubmit={submit} novalidate>
-        <h2 id={titleId} class="text-base font-semibold">Add a device by address</h2>
-        <p id={helpId} class="mt-1.5 text-sm text-neutral-500 dark:text-neutral-400">
+        <h2 id={titleId} class={modalTitle}>Add a device by address</h2>
+        <p id={descId} class="mt-1.5 {muted}">
           Use this when the other device is on the same network but does not show up (some Wi-Fi
           networks block discovery). Find the address in that device's Settings under This device.
         </p>
@@ -66,8 +32,8 @@
         <!-- No inputmode: numeric keyboards on phones have no ":" for the port. -->
         <input
           id={fieldId}
-          bind:this={field}
           bind:value={address}
+          data-autofocus
           type="text"
           autocomplete="off"
           autocapitalize="off"
@@ -77,18 +43,22 @@
         />
 
         <div class="mt-5 flex justify-end gap-2">
-          <button type="button" class="{btn.secondary} flex-1 sm:flex-none" onclick={close}>
+          <button
+            type="button"
+            class="{btn.secondary} {btnFill}"
+            onclick={() => addByAddress.close()}
+          >
             Cancel
           </button>
           <button
             type="submit"
-            class="{btn.primary} flex-1 sm:flex-none"
+            class="{btn.primary} {btnFill}"
             disabled={address.trim().length === 0}
           >
             Pair
           </button>
         </div>
       </form>
-    </div>
-  </div>
+    {/snippet}
+  </Modal>
 {/if}
