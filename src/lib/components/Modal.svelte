@@ -6,7 +6,7 @@
   // Mount it only while the dialog is open ({#if ...}<Modal>). Focus moves to
   // the element marked data-autofocus (or the panel), the page behind turns
   // inert, and focus returns to the opener on close.
-  import type { Snippet } from "svelte";
+  import { untrack, type Snippet } from "svelte";
   import { modals } from "../stores/dialogs.svelte";
 
   interface Props {
@@ -27,9 +27,11 @@
   $effect(() => {
     const opener = document.activeElement as HTMLElement | null;
     (panel?.querySelector<HTMLElement>("[data-autofocus]") ?? panel)?.focus();
-    modals.opened();
+    // Untracked: `count += 1` reads the count, which would make this effect
+    // depend on it and re-run on its own write, forever.
+    untrack(() => modals.opened());
     return () => {
-      modals.closed();
+      untrack(() => modals.closed());
       opener?.focus();
     };
   });
