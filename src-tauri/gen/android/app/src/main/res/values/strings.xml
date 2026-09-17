@@ -1,4 +1,4 @@
 <resources>
-    <string name="app_name">"nearclip"</string>
-    <string name="main_activity_title">"nearclip"</string>
+    <string name="app_name">"NearClip"</string>
+    <string name="main_activity_title">@string/app_name</string>
 </resources>

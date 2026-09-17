@@ -66,7 +66,7 @@ pub fn run() {
 
     #[cfg(mobile)]
     {
-        // Share target: other apps can send text to nearclip through the OS share sheet.
+        // Share target: other apps can send text to NearClip through the OS share sheet.
         // Barcode scanner: pairing by scanning the QR code a desktop shows.
         builder = builder
             .plugin(tauri_plugin_sharehub::init())

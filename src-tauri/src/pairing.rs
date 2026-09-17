@@ -206,7 +206,7 @@ fn paired_via(intent: PairedVia, verified_by_qr: bool) -> PairedVia {
 fn parse_qr(payload: &str) -> Result<QrTarget> {
     let query = payload
         .strip_prefix(QR_PREFIX)
-        .ok_or_else(|| AppError::msg("This is not a nearclip pairing code"))?;
+        .ok_or_else(|| AppError::msg("This is not a NearClip pairing code"))?;
     let mut addrs = Vec::new();
     let (mut id, mut pk, mut token) = (None, None, None);
     for (k, v) in query.split('&').filter_map(|kv| kv.split_once('=')) {

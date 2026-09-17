@@ -1,0 +1,6 @@
+{
+  "default": "nearclip-desktop.svg",
+  "android_bg": "nearclip-android-background.svg",
+  "android_fg": "nearclip-android-foreground.svg",
+  "android_monochrome": "nearclip-android-foreground.svg"
+}

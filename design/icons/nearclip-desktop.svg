@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- Desktop icon: 824 px tile centered on the 1024 px canvas, the transparent margin macOS expects. -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0ea5e9"/>
+      <stop offset="1" stop-color="#2563eb"/>
+    </linearGradient>
+  </defs>
+  <g transform="translate(100 100) scale(0.8046875)">
+    <rect width="1024" height="1024" rx="230" fill="url(#bg)"/>
+    <rect x="262" y="250" width="500" height="600" rx="70" fill="none" stroke="#fff" stroke-width="56"/>
+    <rect x="402" y="202" width="220" height="110" rx="48" fill="#fff"/>
+    <circle cx="512" cy="660" r="38" fill="#fff"/>
+    <path d="M414 562 A138 138 0 0 1 610 562 M350 498 A229 229 0 0 1 674 498" fill="none" stroke="#fff" stroke-width="54" stroke-linecap="round"/>
+  </g>
+</svg>

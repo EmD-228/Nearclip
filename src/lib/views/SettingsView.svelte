@@ -75,7 +75,7 @@
       label: "Auto-sync clipboard",
       description: settings.isDesktop
         ? "Send every copied text to paired devices automatically."
-        : "Whenever you open nearclip, the text you last copied is sent to your paired devices. Android does not allow reading the clipboard in the background, so use the Send clipboard button in the nearclip notification or the Share menu from other apps.",
+        : "Whenever you open NearClip, the text you last copied is sent to your paired devices. Android does not allow reading the clipboard in the background, so use the Send clipboard button in the NearClip notification or the Share menu from other apps.",
     },
     {
       key: "writeReceivedToClipboard",
@@ -96,7 +96,7 @@
     {
       key: "autostart",
       label: "Start at login",
-      description: "Launch nearclip automatically when you sign in.",
+      description: "Launch NearClip automatically when you sign in.",
       desktopOnly: true,
     },
     {
@@ -188,7 +188,7 @@
         <p>
           Devices only reach each other on the same local network. If pairing or sending fails,
           check that both devices are on the same Wi-Fi or wired network, and that your firewall
-          allows nearclip to accept incoming connections on the port listed above. Guest
+          allows NearClip to accept incoming connections on the port listed above. Guest
           networks and some office networks block device-to-device traffic.
         </p>
       </div>

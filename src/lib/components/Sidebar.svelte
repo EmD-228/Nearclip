@@ -25,7 +25,7 @@
 >
   <div class="flex items-center gap-2 px-4 pt-5 pb-4">
     <ClipboardCopy class="size-5 text-blue-600" aria-hidden="true" />
-    <span class="text-sm font-semibold tracking-tight">nearclip</span>
+    <span class="text-sm font-semibold tracking-tight">NearClip</span>
   </div>
 
   <nav class="flex flex-col gap-0.5 px-2" aria-label="Main">

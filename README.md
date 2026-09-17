@@ -1,18 +1,18 @@
-# nearclip
+# NearClip
 
-nearclip is a LAN-only, end-to-end encrypted clipboard text sharing app for macOS, Windows and Android, built with Tauri v2, Rust and Svelte 5. There is no server and no account: devices on the same local network discover each other with mDNS (`_nearclip._tcp.local.`), pair once by comparing a 6-digit code shown on both screens, and then exchange text over a direct TCP connection (port 47821, with an ephemeral fallback) encrypted with AES-256-GCM.
+NearClip is a LAN-only, end-to-end encrypted clipboard text sharing app for macOS, Windows and Android, built with Tauri v2, Rust and Svelte 5. There is no server and no account: devices on the same local network discover each other with mDNS (`_nearclip._tcp.local.`), pair once by comparing a 6-digit code shown on both screens, and then exchange text over a direct TCP connection (port 47821, with an ephemeral fallback) encrypted with AES-256-GCM.
 
 ## Features (MVP)
 
 - Send text manually to one paired device or to all of them, with a Paste button to grab the current clipboard.
-- Optional auto-sync: on desktop every text you copy is sent to your paired devices; on Android, where the clipboard cannot be read in the background, the last copied text is sent each time nearclip opens (the persistent notification has a "Send clipboard" button for that).
+- Optional auto-sync: on desktop every text you copy is sent to your paired devices; on Android, where the clipboard cannot be read in the background, the last copied text is sent each time NearClip opens (the persistent notification has a "Send clipboard" button for that).
 - History of sent and received items, with one-click copy.
 - Write received text straight to the local clipboard (toggle).
 - Pair a phone by scanning a QR code shown on the computer: one scan, no code to compare, and it works even when mDNS discovery fails or addresses change.
 - Add a device by IP address when the network blocks mDNS discovery.
 - Automatic mDNS discovery is an opt-in setting ("Automatic discovery", experimental): it is unreliable on many Wi-Fi networks, so pairing goes through QR codes or addresses by default. Paired devices show how they were paired rather than an online/offline state.
 - Unpairing on one device tells the other to forget the pairing too; if that message cannot be delivered, the stale side drops the pairing the next time it tries to send.
-- Android: "Share to nearclip" from any app's share sheet; the text lands in the Send view.
+- Android: "Share to NearClip" from any app's share sheet; the text lands in the Send view.
 - Desktop: tray icon with close-to-tray behaviour, start at login (autostart).
 - System notifications when text is received.
 
@@ -133,8 +133,8 @@ pnpm tauri android build --target aarch64 --apk --split-per-abi
 ## Troubleshooting
 
 - **macOS asks for Local Network access.** Allow it. If you refused, enable it under System Settings > Privacy & Security > Local Network.
-- **macOS firewall prompt.** When the firewall is on, macOS asks whether nearclip may accept incoming connections. Choose Allow, or the other device cannot reach you.
-- **Windows Firewall.** Allow nearclip on Private networks when prompted. If the network is marked Public, either switch it to Private or add a manual rule.
+- **macOS firewall prompt.** When the firewall is on, macOS asks whether NearClip may accept incoming connections. Choose Allow, or the other device cannot reach you.
+- **Windows Firewall.** Allow NearClip on Private networks when prompted. If the network is marked Public, either switch it to Private or add a manual rule.
 - **Devices do not see each other.** Guest, hotel and many office Wi-Fi networks isolate clients and block mDNS. Both computers must be on the same normal Wi-Fi or wired network.
 
 ## Project layout
@@ -163,5 +163,14 @@ src-tauri/src/                Rust backend
   session.rs                  per-connection encrypted sessions
   clipboard.rs                clipboard read/write and auto-sync watcher
   tray.rs                     tray icon and menu
+
+design/icons/                 app icon sources (SVG) and the tauri icon manifest
 ```
-# Nearclip
+
+## App icon
+
+A clipboard with a proximity signal on a blue gradient. The SVG sources are in `design/icons/` (each file says what it is for; `icon-manifest.json` maps them to platforms). To regenerate every platform icon and commit the result:
+
+```bash
+pnpm tauri icon design/icons/icon-manifest.json
+```

@@ -7,3 +7,13 @@ node_modules
 !.env.example
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
+# `pnpm tauri icon` output that no build target uses (AppX logos, extra PNGs,
+# pre-API-26 Android launcher PNGs superseded by the adaptive icon)
+src-tauri/icons/Square*Logo.png
+src-tauri/icons/StoreLogo.png
+src-tauri/icons/64x64.png
+src-tauri/icons/icon.png
+src-tauri/icons/ios/
+src-tauri/gen/android/app/src/main/res/mipmap-*/ic_launcher.png
+src-tauri/gen/android/app/src/main/res/mipmap-*/ic_launcher_round.png

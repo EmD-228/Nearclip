@@ -94,7 +94,7 @@
       </div>
 
       <p id={helpId} class="mt-4 text-sm text-neutral-500 dark:text-neutral-400">
-        On your phone, open nearclip, tap Scan QR code and point it at this code. It expires after
+        On your phone, open NearClip, tap Scan QR code and point it at this code. It expires after
         {ttlMinutes} minutes.
       </p>
 

@@ -121,10 +121,10 @@
       <h2 class="mt-4 text-sm font-medium">No devices yet</h2>
       <p class="mt-1 max-w-xs text-sm text-neutral-500 dark:text-neutral-400">
         {#if settings.isDesktop}
-          Click Show QR code and scan it with nearclip on your phone, or use Add by IP to pair
+          Click Show QR code and scan it with NearClip on your phone, or use Add by IP to pair
           with another computer.
         {:else}
-          Open nearclip on your computer, click Show QR code there, then tap Scan QR code here.
+          Open NearClip on your computer, click Show QR code there, then tap Scan QR code here.
         {/if}
         {#if showAvailable}
           Devices on the same Wi-Fi also show up here on their own.
@@ -168,7 +168,7 @@
                   Turn on Auto-sync clipboard and every text you copy on this computer is sent to
                   your paired devices. Nothing to paste, nothing to click.
                 {:else}
-                  Turn on Auto-sync clipboard and every time you open nearclip, what you last copied
+                  Turn on Auto-sync clipboard and every time you open NearClip, what you last copied
                   is sent to your paired devices.
                 {/if}
               </p>

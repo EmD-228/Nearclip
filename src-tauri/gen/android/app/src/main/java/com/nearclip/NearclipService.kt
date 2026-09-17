@@ -37,7 +37,9 @@ class NearclipService : Service() {
       CHANNEL_ID,
       "Background listening",
       NotificationManager.IMPORTANCE_LOW,
-    ).apply { description = "Shown while nearclip can receive text in the background" }
+    ).apply {
+      description = "Shown while ${getString(R.string.app_name)} can receive text in the background"
+    }
     getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
   }
 
@@ -81,8 +83,9 @@ class NearclipService : Service() {
       PendingIntent.FLAG_IMMUTABLE,
     )
     return NotificationCompat.Builder(this, CHANNEL_ID)
-      .setSmallIcon(R.mipmap.ic_launcher)
-      .setContentTitle("nearclip")
+      // Status-bar icons are alpha masks: use the white glyph, not the full-colour launcher icon.
+      .setSmallIcon(R.mipmap.ic_launcher_monochrome)
+      .setContentTitle(getString(R.string.app_name))
       .setContentText("Listening for text from your devices")
       .setContentIntent(open)
       // Opening the app is enough: with auto-sync on, the Rust side sends the

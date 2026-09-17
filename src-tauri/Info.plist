@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
   <key>NSLocalNetworkUsageDescription</key>
-  <string>nearclip finds your other devices on the local network to share clipboard text with them.</string>
+  <string>NearClip finds your other devices on the local network to share clipboard text with them.</string>
   <key>NSBonjourServices</key>
   <array>
     <string>_nearclip._tcp</string>

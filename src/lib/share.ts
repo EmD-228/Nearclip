@@ -1,4 +1,4 @@
-// Inbound "Share to nearclip" (Android/iOS share sheet). Only called on mobile,
+// Inbound "Share to NearClip" (Android/iOS share sheet). Only called on mobile,
 // where the sharehub plugin is registered.
 import {
   clearPendingShares,
