@@ -148,9 +148,45 @@ pub struct HistoryItem {
     pub direction: Direction,
     pub peer_id: String,
     pub peer_name: String,
+    /// Empty for a file transfer.
     pub text: String,
     pub ts_ms: i64,
     pub ok: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub file: Option<FileMeta>,
+}
+
+impl HistoryItem {
+    /// Text (`file: None`) or a saved file (`text` empty) that just arrived from `peer`.
+    pub fn received(
+        id: String,
+        peer: &PeerRecord,
+        peer_name: &str,
+        text: String,
+        file: Option<FileMeta>,
+    ) -> Self {
+        HistoryItem {
+            id,
+            direction: Direction::Received,
+            peer_id: peer.device_id.clone(),
+            peer_name: peer_name.to_string(),
+            text,
+            ts_ms: now_ms(),
+            ok: true,
+            file,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FileMeta {
+    pub name: String,
+    pub size: u64,
+    pub mime: String,
+    /// Where a received file was saved. None for sent files.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub path: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -173,6 +209,7 @@ pub struct AppState {
     pub listen_port: AtomicU16,
     pub clipboard_tx: std::sync::mpsc::Sender<ClipboardCmd>,
     pub discovery: Mutex<Option<ServiceDaemon>>,
+    pub outgoing: crate::transfer::Outgoing,
     #[cfg(desktop)]
     pub tray_autosync: Mutex<Option<CheckMenuItem<Wry>>>,
 }
@@ -218,11 +255,15 @@ impl AppState {
         out
     }
 
-    pub fn push_history(&self, item: HistoryItem) {
+    /// Adds an item to the history and saves it; a failed save is only logged.
+    pub fn record_history(&self, app: &AppHandle, item: HistoryItem) {
         let mut h = self.history.lock().unwrap();
         h.push_front(item);
         while h.len() > HISTORY_CAP {
             h.pop_back();
+        }
+        if let Err(e) = save_history(app, &h) {
+            log::warn!("saving history failed: {e}");
         }
     }
 }

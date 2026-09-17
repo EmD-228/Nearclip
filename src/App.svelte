@@ -17,7 +17,7 @@
   import { pairing } from "./lib/stores/pairing.svelte";
   import { settings } from "./lib/stores/settings.svelte";
   import { errorMessage, toasts } from "./lib/stores/toasts.svelte";
-  import { consumeSharedText, onSharedText } from "./lib/share";
+  import { consumeShared, onShared } from "./lib/share";
   import { appendDraft } from "./lib/format";
   import type { SendTarget } from "./lib/types";
   import type { View } from "./lib/view";
@@ -33,6 +33,7 @@
   // Kept here so the Send view survives navigation.
   let sendTarget = $state<SendTarget>("all");
   let sendDraft = $state("");
+  let sendAttachment = $state<File | null>(null);
 
   function openSend(deviceId: string) {
     sendTarget = deviceId;
@@ -41,12 +42,12 @@
 
   const inTauri = isTauri();
 
-  // Text shared from another app lands in the Send view, ready to send.
-  async function applySharedText() {
-    const text = await consumeSharedText();
-    if (!text) return;
-    sendDraft = appendDraft(sendDraft, text);
-    view = "send";
+  // Text or a file shared from another app lands in the Send view, ready to send.
+  async function applyShared() {
+    const { text, file } = await consumeShared();
+    if (text) sendDraft = appendDraft(sendDraft, text);
+    if (file) sendAttachment = file;
+    if (text || file) view = "send";
   }
 
   async function init() {
@@ -90,8 +91,8 @@
     void init().then(() => {
       // The share sheet only exists on mobile; the plugin is not even registered on desktop.
       if (inTauri && !settings.isDesktop) {
-        subscriptions.push(onSharedText(() => void applySharedText()));
-        void applySharedText();
+        subscriptions.push(onShared(() => void applyShared()));
+        void applyShared();
       }
     });
 
@@ -112,7 +113,7 @@
     {#if view === "devices"}
       <DevicesView onSend={openSend} />
     {:else if view === "send"}
-      <SendView bind:target={sendTarget} bind:text={sendDraft} />
+      <SendView bind:target={sendTarget} bind:text={sendDraft} bind:attachment={sendAttachment} />
     {:else if view === "history"}
       <HistoryView />
     {:else}

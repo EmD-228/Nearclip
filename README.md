@@ -25,16 +25,17 @@ They are built by GitHub Actions from the tagged commit and are not notarized or
 ## Features
 
 - Send text manually to one paired device or to all of them, with a Paste button to grab the current clipboard.
+- Send files and photos up to 100 MB: attach or drop them in the Send view. Received files go to Downloads/NearClip, and History opens their folder on desktop or shares them on Android. Devices still on 0.1.x receive text only, and the sender is told so.
 - Optional auto-sync: on desktop every text you copy is sent to your paired devices; on Android, where the clipboard cannot be read in the background, the last copied text is sent each time NearClip opens (the persistent notification has a "Send clipboard" button for that).
 - History of sent and received items, with one-click copy.
 - Write received text straight to the local clipboard (toggle).
 - Pair a phone by scanning a QR code shown on the computer (one scan, no code to compare), or add a device by IP address and compare a 6-digit code. Automatic mDNS discovery is an opt-in, experimental setting, since many Wi-Fi networks block it. Paired devices show how they were paired rather than an online/offline state.
 - Unpairing on one device tells the other to forget the pairing too; if that message cannot be delivered, the stale side drops the pairing the next time it tries to send.
-- Android: "Share to NearClip" from any app's share sheet; the text lands in the Send view.
+- Android: "Share to NearClip" from any app's share sheet; the text or file lands in the Send view.
 - Desktop: tray icon with close-to-tray behaviour, start at login (autostart).
-- System notifications when text is received.
+- System notifications when text or a file is received.
 
-Text only, up to 1 MB per message. Files are out of scope for now. On Android a persistent "Listening for text" notification keeps the app receiving in the background; its Stop button pauses that until the app is next opened.
+Text messages are limited to 1 MB. On Android a persistent "Listening for text" notification keeps the app receiving in the background; its Stop button pauses that until the app is next opened.
 
 ## Requirements
 
@@ -154,7 +155,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md); security reports go through [SECURITY.md
 - The shared secret is expanded with HKDF bound to the full pairing transcript (both identity keys, both ephemeral keys, both nonces), and each side signs that transcript with its Ed25519 identity key so the pairing is tied to the identity that gets stored.
 - When pairing by IP address, a 6-digit short authentication string (SAS) is derived from that transcript and displayed on both screens; pairing completes only when both users confirm the codes match, which defeats an active man-in-the-middle on the local network.
 - QR pairing uses a visual channel instead of the code comparison: the QR carries the computer's public key and a one-time token valid for 5 minutes. The phone checks the key it connects to against the QR, the computer checks the token, and both sides then confirm on their own.
-- Every connection after pairing derives a fresh per-connection session key from the paired secret. Payloads are encrypted with AES-256-GCM.
+- Every connection after pairing derives a fresh per-connection session key from the paired secret. Payloads are encrypted with AES-256-GCM, including each chunk of a file, and a received file is kept only if its SHA-256 matches the one the sender announced.
 - NearClip hides the text, not the traffic: anyone on the network can see that two devices talk, and when.
 - The identity seed and the pairing keys are sealed with AES-256-GCM inside the JSON files under the app data directory (macOS: `~/Library/Application Support/com.nearclip/`). The 32-byte master key lives in the OS credential store on desktop (macOS Keychain, Windows Credential Manager, Secret Service on Linux) and in an app-private file on Android.
 
