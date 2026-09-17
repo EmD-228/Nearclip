@@ -93,9 +93,15 @@ pnpm build
 pnpm tauri build
 ```
 
-This produces a `.dmg` on macOS and NSIS / MSI installers on Windows. Windows installers must be built on Windows.
+This produces a `.dmg` on macOS and NSIS / MSI installers on Windows (built on Windows). For your own Mac, `pnpm tauri build --bundles app` skips the dmg packaging and leaves `NearClip.app` in `src-tauri/target/release/bundle/macos/`, ready to copy to `/Applications`. Installers are not notarized or trust-signed: on macOS, right-click the app and choose Open the first time; on Windows, dismiss SmartScreen with "More info" then "Run anyway".
 
-Code signing and notarization are not configured yet. On macOS, users need to right-click the app and choose Open the first time. On Windows, SmartScreen shows a warning that must be dismissed with "More info" then "Run anyway".
+### macOS signing
+
+`signingIdentity` is `-`, so the bundle is sealed with an ad hoc signature: no Apple account needed, but the identity changes with every build and macOS re-asks the permissions listed under Troubleshooting after each rebuild. For a stable identity, set the environment variable (in your shell profile, for instance) to a certificate from your keychain (`security find-identity -v -p codesigning`); a free Apple Development certificate or a self-signed code-signing certificate made in Keychain Access both work for your own machines:
+
+```sh
+APPLE_SIGNING_IDENTITY="Apple Development: Your Name (TEAMID)" pnpm tauri build
+```
 
 ### Android release APK
 
