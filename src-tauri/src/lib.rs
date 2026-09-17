@@ -6,6 +6,7 @@ mod error;
 mod identity;
 mod pairing;
 mod protocol;
+mod secrets;
 mod session;
 mod state;
 mod transport;
@@ -87,6 +88,7 @@ pub fn run() {
         .setup(|app| {
             let handle = app.handle().clone();
 
+            secrets::init(&handle)?;
             let identity = Identity::load_or_create(&handle)?;
             log::info!("device id {}", identity.device_id);
             let settings = load_settings(&handle);

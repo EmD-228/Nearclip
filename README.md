@@ -134,7 +134,7 @@ pnpm tauri android build --target aarch64 --apk --split-per-abi
 - A 6-digit short authentication string (SAS) is derived from that transcript and displayed on both screens. Pairing only completes when both users confirm the codes match, which defeats an active man-in-the-middle on the local network.
 - QR pairing replaces the code comparison with a visual channel: the QR carries the computer's public key and a one-time token valid for 5 minutes. The phone checks the key it connects to against the QR, the computer checks the token, and both sides then confirm on their own.
 - Every connection after pairing derives a fresh per-connection session key from the paired secret. Payloads are encrypted with AES-256-GCM.
-- Pairing keys are currently stored in plaintext JSON under the app data directory (macOS: `~/Library/Application Support/com.nearclip/`). Moving them to the OS keychain is a planned follow-up.
+- The identity seed and the pairing keys are sealed with AES-256-GCM inside the JSON files under the app data directory (macOS: `~/Library/Application Support/com.nearclip/`). The 32-byte master key lives in the OS credential store on desktop (macOS Keychain, Windows Credential Manager, Secret Service on Linux) and in an app-private file on Android.
 
 ## Troubleshooting
 

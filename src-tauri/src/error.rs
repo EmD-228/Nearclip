@@ -14,6 +14,9 @@ pub enum AppError {
     Store(#[from] tauri_plugin_store::Error),
     #[error("mDNS error: {0}")]
     Mdns(#[from] mdns_sd::Error),
+    #[cfg(desktop)]
+    #[error("Credential store error: {0}")]
+    Keyring(#[from] keyring::Error),
     #[error("Cryptographic verification failed")]
     Crypto,
     #[error("Unknown peer: this device is not paired with the sender")]

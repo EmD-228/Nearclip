@@ -1,16 +1,26 @@
-//! Long-lived Ed25519 device identity, persisted in `identity.json`.
+//! Long-lived Ed25519 device identity, persisted sealed in `identity.json`.
 
 use ed25519_dalek::{Signature, Signer, SigningKey, VerifyingKey};
-use serde_json::json;
+use serde::{Deserialize, Serialize};
 use tauri::AppHandle;
 use tauri_plugin_store::StoreExt;
 
 use crate::crypto;
 use crate::error::{AppError, Result};
-use crate::protocol::{b64d_array, b64e};
+use crate::protocol::b64e;
 
 const STORE_FILE: &str = "identity.json";
 const KEY_SEED: &str = "seed";
+
+/// The seed as stored: sealed with the master key (see `secrets`).
+#[derive(Serialize, Deserialize)]
+struct Seed(
+    #[serde(
+        serialize_with = "crate::secrets::ser_key32",
+        deserialize_with = "crate::secrets::de_key32"
+    )]
+    [u8; 32],
+);
 
 pub struct Identity {
     signing_key: SigningKey,
@@ -29,17 +39,21 @@ impl Identity {
 
     pub fn load_or_create(app: &AppHandle) -> Result<Self> {
         let store = app.store(STORE_FILE)?;
-        if let Some(v) = store.get(KEY_SEED) {
-            if let Some(s) = v.as_str() {
-                if let Ok(seed) = b64d_array::<32>(s) {
-                    return Ok(Identity::from_seed(seed));
-                }
+        let stored = store.get(KEY_SEED);
+        // Sealed seeds are JSON objects; a base64 string is an older, plaintext seed.
+        let sealed = stored.as_ref().is_some_and(|v| v.is_object());
+        let seed = match stored.map(serde_json::from_value::<Seed>) {
+            Some(Ok(seed)) => seed.0,
+            Some(Err(_)) => {
+                log::warn!("identity seed unreadable, generating a new identity");
+                crypto::random_bytes()
             }
-            log::warn!("identity seed unreadable, generating a new identity");
+            None => crypto::random_bytes(),
+        };
+        if !sealed {
+            store.set(KEY_SEED, serde_json::to_value(Seed(seed))?);
+            store.save()?;
         }
-        let seed: [u8; 32] = crypto::random_bytes();
-        store.set(KEY_SEED, json!(b64e(&seed)));
-        store.save()?;
         Ok(Identity::from_seed(seed))
     }
 

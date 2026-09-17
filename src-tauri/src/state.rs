@@ -81,6 +81,11 @@ pub struct PeerRecord {
     pub device_id: String,
     pub name: String,
     pub id_pk: [u8; 32],
+    /// Sealed with the master key on disk; see `secrets`.
+    #[serde(
+        serialize_with = "crate::secrets::ser_key32",
+        deserialize_with = "crate::secrets::de_key32"
+    )]
     pub pairing_key: [u8; 32],
     pub paired_at: i64,
     pub last_seen_addr: Option<SocketAddr>,
@@ -251,13 +256,23 @@ pub fn save_settings(app: &AppHandle, settings: &Settings) -> Result<()> {
 }
 
 pub fn load_peers(app: &AppHandle) -> HashMap<String, PeerRecord> {
-    let list: Vec<PeerRecord> = app
-        .store(PEERS_FILE)
-        .ok()
-        .and_then(|s| s.get("peers"))
+    let stored = app.store(PEERS_FILE).ok().and_then(|s| s.get("peers"));
+    // Sealed keys are JSON objects; older versions wrote plain byte arrays.
+    let legacy = stored
+        .as_ref()
+        .and_then(|v| v.as_array())
+        .is_some_and(|list| list.iter().any(|p| !p["pairingKey"].is_object()));
+    let list: Vec<PeerRecord> = stored
         .and_then(|v| serde_json::from_value(v).ok())
         .unwrap_or_default();
-    list.into_iter().map(|p| (p.device_id.clone(), p)).collect()
+    let peers: HashMap<String, PeerRecord> =
+        list.into_iter().map(|p| (p.device_id.clone(), p)).collect();
+    if legacy && !peers.is_empty() {
+        if let Err(e) = save_peers(app, &peers) {
+            log::warn!("re-sealing pairing keys failed: {e}");
+        }
+    }
+    peers
 }
 
 /// Removes a pairing, persists the change and refreshes the device list.
