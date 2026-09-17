@@ -86,7 +86,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       NDK_VERSION: 28.2.13676358
-      APK_FILES: src-tauri/gen/android/app/build/outputs/apk/**/release/*.apk
+      APK_DIR: src-tauri/gen/android/app/build/outputs/apk/universal/release
     steps:
       - uses: actions/checkout@v4
       - env:
@@ -120,10 +120,15 @@ jobs:
           workspaces: src-tauri
       - run: pnpm install --frozen-lockfile
       - run: pnpm tauri android build --apk --target aarch64
+      # Same naming as the desktop installers; an unsigned build keeps its suffix.
+      - run: |
+          for f in "$APK_DIR"/app-universal-release*.apk; do
+            mv "$f" "$APK_DIR/NearClip_$(jq -r .version src-tauri/tauri.conf.json)_android${f#*app-universal-release}"
+          done
       - uses: actions/upload-artifact@v4
         with:
           name: nearclip-android-arm64
-          path: ${{ env.APK_FILES }}
+          path: ${{ env.APK_DIR }}/*.apk
           if-no-files-found: error
 
   release:
@@ -138,7 +143,7 @@ jobs:
           pattern: nearclip-*
           merge-multiple: true
           path: dist
-      # `*-release.apk` leaves out an unsigned `*-release-unsigned.apk`.
+      # `*_android.apk` leaves out an unsigned `*_android-unsigned.apk`.
       - uses: softprops/action-gh-release@v2
         with:
           name: NearClip ${{ github.ref_name }}
@@ -146,4 +151,4 @@ jobs:
           files: |
             dist/*.dmg
             dist/*.exe
-            dist/*-release.apk
+            dist/*_android.apk
