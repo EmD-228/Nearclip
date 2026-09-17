@@ -131,6 +131,8 @@ jobs:
       # `*-release.apk` leaves out an unsigned `*-release-unsigned.apk`.
       - uses: softprops/action-gh-release@v2
         with:
+          name: NearClip ${{ github.ref_name }}
+          generate_release_notes: true
           files: |
             dist/*.dmg
             dist/*.exe

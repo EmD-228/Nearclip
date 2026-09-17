@@ -2,6 +2,10 @@
 
 NearClip is a LAN-only, end-to-end encrypted clipboard text sharing app for macOS, Windows and Android, built with Tauri v2, Rust and Svelte 5. There is no server and no account: devices on the same local network discover each other with mDNS (`_nearclip._tcp.local.`), pair once by comparing a 6-digit code shown on both screens, and then exchange text over a direct TCP connection (port 47821, with an ephemeral fallback) encrypted with AES-256-GCM.
 
+## Download
+
+Installers for every version are on the [Releases page](https://github.com/EmD-228/Nearclip/releases): a `.dmg` for macOS (Apple Silicon), an NSIS `.exe` for Windows and an `.apk` for Android. They are built by GitHub Actions from the tagged commit; see "Building installers" for what is and is not signed.
+
 ## Features (MVP)
 
 - Send text manually to one paired device or to all of them, with a Paste button to grab the current clipboard.
