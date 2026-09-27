@@ -18,6 +18,7 @@
   import { settings } from "./lib/stores/settings.svelte";
   import { errorMessage, toasts } from "./lib/stores/toasts.svelte";
   import { consumeShared, onShared } from "./lib/share";
+  import { transfers } from "./lib/stores/transfers.svelte";
   import { appendDraft } from "./lib/format";
   import type { SendTarget } from "./lib/types";
   import type { View } from "./lib/view";
@@ -33,7 +34,6 @@
   // Kept here so the Send view survives navigation.
   let sendTarget = $state<SendTarget>("all");
   let sendDraft = $state("");
-  let sendAttachment = $state<File | null>(null);
 
   function openSend(deviceId: string) {
     sendTarget = deviceId;
@@ -42,12 +42,13 @@
 
   const inTauri = isTauri();
 
-  // Text or a file shared from another app lands in the Send view, ready to send.
+  // Text and files shared from another app land in the Send view, ready to send.
   async function applyShared() {
-    const { text, file } = await consumeShared();
+    const { text, files, rejected } = await consumeShared();
     if (text) sendDraft = appendDraft(sendDraft, text);
-    if (file) sendAttachment = file;
-    if (text || file) view = "send";
+    for (const message of rejected) toasts.error(message);
+    transfers.add(files);
+    if (text || files.length > 0) view = "send";
   }
 
   async function init() {
@@ -113,7 +114,7 @@
     {#if view === "devices"}
       <DevicesView onSend={openSend} onOpenHistory={() => (view = "history")} />
     {:else if view === "send"}
-      <SendView bind:target={sendTarget} bind:text={sendDraft} bind:attachment={sendAttachment} />
+      <SendView bind:target={sendTarget} bind:text={sendDraft} />
     {:else if view === "history"}
       <HistoryView />
     {:else}

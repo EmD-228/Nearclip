@@ -2,11 +2,42 @@
 // Rust as base64, because Android's IPC carries JSON only. Rust seals every
 // chunk and relays it to the target devices as it arrives.
 import { api } from "./api";
+import { formatBytes } from "./format";
 import type { SendResult, SendTarget } from "./types";
 
 /** Keep in sync with MAX_FILE_BYTES and FILE_CHUNK_BYTES in src-tauri/src/protocol.rs. */
 export const MAX_FILE_BYTES = 100 * 1024 * 1024;
 const CHUNK_BYTES = 512 * 1024;
+
+export const MAX_SIZE_LABEL = formatBytes(MAX_FILE_BYTES);
+
+/**
+ * Splits files into the ones that can be sent and a message for each one that
+ * cannot. Every way of attaching goes through here — the picker, a drop, and
+ * files another app shares — so a file is checked once, wherever it came from.
+ *
+ * It works on anything carrying a name and a size, so a shared file can be
+ * turned down from its metadata, before its bytes are read.
+ */
+export function acceptable<T extends { name: string; size: number }>(
+  files: Iterable<T>,
+): { kept: T[]; rejected: string[] } {
+  const kept: T[] = [];
+  const rejected: string[] = [];
+  for (const file of files) {
+    if (file.size === 0) {
+      rejected.push(`${file.name} is empty`);
+    } else if (file.size > MAX_FILE_BYTES) {
+      rejected.push(`${file.name} is too large (${MAX_SIZE_LABEL} max)`);
+    } else {
+      kept.push(file);
+    }
+  }
+  return { kept, rejected };
+}
+
+/** Thrown by `sendFile` when `stopped` asked it to give up. */
+export const CANCELLED = "cancelled";
 
 /**
  * Sends one file to `target`. `onProgress` gets the fraction sent (0 to 1).
@@ -17,10 +48,12 @@ export async function sendFile(
   target: SendTarget,
   file: File,
   onProgress: (fraction: number) => void,
+  stopped: () => boolean = () => false,
 ): Promise<SendResult[]> {
   const id = await api.sendFileBegin(target, file.name, file.size, file.type);
   try {
     for (let offset = 0; offset < file.size; offset += CHUNK_BYTES) {
+      if (stopped()) throw new Error(CANCELLED);
       const bytes = new Uint8Array(await file.slice(offset, offset + CHUNK_BYTES).arrayBuffer());
       const sent = await api.sendFileChunk(id, toBase64(bytes));
       onProgress(sent / file.size);
