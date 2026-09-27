@@ -10,36 +10,33 @@
     X,
   } from "@lucide/svelte";
   import { api } from "../api";
-  import { MAX_FILE_BYTES, sendFile } from "../files";
-  import { appendDraft, formatBytes, plural } from "../format";
+  import { MAX_SIZE_LABEL } from "../files";
+  import { appendDraft, formatBytes } from "../format";
+  import { report } from "../report";
   import { devices } from "../stores/devices.svelte";
   import { settings } from "../stores/settings.svelte";
+  import { transfers } from "../stores/transfers.svelte";
   import { errorMessage, toasts } from "../stores/toasts.svelte";
-  import type { SendResult, SendTarget } from "../types";
+  import type { SendTarget } from "../types";
   import { btn, btnFill, card, input, pageSubtitle, pageTitle } from "../ui";
 
   interface Props {
     target?: SendTarget;
     text?: string;
-    attachment?: File | null;
   }
 
-  let {
-    target = $bindable("all"),
-    text = $bindable(""),
-    attachment = $bindable(null),
-  }: Props = $props();
+  let { target = $bindable("all"), text = $bindable("") }: Props = $props();
 
   let textarea = $state<HTMLTextAreaElement | null>(null);
   let fileInput = $state<HTMLInputElement | null>(null);
-  let sending = $state(false);
-  /** Fraction of the attachment sent, while a file transfer runs. */
-  let progress = $state<number | null>(null);
+  let sendingText = $state(false);
   let dragging = $state(false);
 
+  // The queue lives in a store: it keeps going when this view is closed.
+  let sending = $derived(transfers.running || sendingText);
   let hasPaired = $derived(devices.paired.length > 0);
   let canSend = $derived(
-    hasPaired && !sending && (text.trim().length > 0 || attachment !== null),
+    hasPaired && !sending && (text.trim().length > 0 || transfers.files.length > 0),
   );
 
   // If the selected device gets unpaired, fall back to "all".
@@ -54,44 +51,17 @@
     if (settings.isDesktop) textarea?.focus();
   });
 
-  function nameOf(deviceId: string): string {
-    return devices.byId(deviceId)?.name ?? "Unknown device";
-  }
-
-  /** One toast for the successes, one per failed device. */
-  function report(results: SendResult[], what: string) {
-    const okIds = results.filter((r) => r.ok).map((r) => r.deviceId);
-    if (results.length === 0) {
-      toasts.info(`No device received ${what}.`);
-    } else if (okIds.length === 1 && okIds.length === results.length) {
-      toasts.success(`Sent ${what} to ${nameOf(okIds[0])}`);
-    } else if (okIds.length > 0) {
-      toasts.success(`Sent ${what} to ${plural(okIds.length, "device")}`);
-    }
-    for (const f of results.filter((r) => !r.ok)) {
-      toasts.error(`${nameOf(f.deviceId)}: ${f.error ?? "failed to send"}`);
-    }
-  }
-
   async function send() {
     if (!canSend) return;
-    sending = true;
+    await transfers.send(target);
+    if (text.trim().length === 0) return;
+    sendingText = true;
     try {
-      if (attachment) {
-        const sent = attachment;
-        progress = 0;
-        const results = await sendFile(target, sent, (fraction) => (progress = fraction));
-        report(results, sent.name);
-        if (results.some((r) => r.ok)) attachment = null;
-      }
-      if (text.trim().length > 0) {
-        report(await api.sendText(target, text), "the text");
-      }
+      report(await api.sendText(target, text), "the text");
     } catch (err) {
       toasts.error(`Send failed: ${errorMessage(err)}`);
     } finally {
-      sending = false;
-      progress = null;
+      sendingText = false;
     }
   }
 
@@ -124,22 +94,9 @@
     if (settings.isDesktop) textarea?.focus();
   }
 
-  const maxSize = formatBytes(MAX_FILE_BYTES);
-
-  function attach(file: File | undefined) {
-    if (!file) return;
-    if (file.size === 0) {
-      toasts.error(`${file.name} is empty`);
-    } else if (file.size > MAX_FILE_BYTES) {
-      toasts.error(`${file.name} is too large (${maxSize} max)`);
-    } else {
-      attachment = file;
-    }
-  }
-
   function onFilePicked(e: Event) {
     const picker = e.currentTarget as HTMLInputElement;
-    attach(picker.files?.[0]);
+    transfers.add(picker.files ?? []);
     // Picking the same file again must fire `change` again.
     picker.value = "";
   }
@@ -165,7 +122,7 @@
   function onDrop(e: DragEvent) {
     e.preventDefault();
     dragging = false;
-    attach(e.dataTransfer?.files[0]);
+    transfers.add(e.dataTransfer?.files ?? []);
   }
 </script>
 
@@ -186,7 +143,7 @@
   <header class="mb-4 sm:mb-5">
     <h1 class={pageTitle}>Send</h1>
     <p class={pageSubtitle}>
-      Type or paste text, or attach a file, then send it to a device on your local network.
+      Type or paste text, or attach files, then send them to a device on your local network.
     </p>
   </header>
 
@@ -201,43 +158,58 @@
     class="{input} h-auto min-h-32 resize-none py-2.5 leading-relaxed sm:min-h-40 sm:flex-1"
   ></textarea>
 
-  {#if attachment}
-    {@const Icon = attachment.type.startsWith("image/") ? ImageIcon : FileIcon}
-    <div class="{card} mt-3 flex items-center gap-3 px-3 py-2.5">
-      <Icon class="size-5 shrink-0 text-neutral-500 dark:text-neutral-400" aria-hidden="true" />
-      <div class="min-w-0 flex-1">
-        <p class="truncate text-sm font-medium" title={attachment.name}>{attachment.name}</p>
-        {#if progress === null}
-          <p class="text-xs text-neutral-500 dark:text-neutral-400">
-            {formatBytes(attachment.size)}
-          </p>
-        {:else}
-          <div
-            class="mt-1.5 h-1.5 overflow-hidden rounded-full bg-neutral-200 dark:bg-neutral-800"
-            role="progressbar"
-            aria-label="Sending {attachment.name}"
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-valuenow={Math.round(progress * 100)}
-          >
-            <div
-              class="h-full rounded-full bg-blue-600 transition-[width] duration-200"
-              style:width="{progress * 100}%"
-            ></div>
+  {#if transfers.files.length > 0}
+    <ul class="mt-3 flex flex-col gap-2">
+      {#each transfers.files as queued (queued.file)}
+        {@const file = queued.file}
+        {@const Icon = file.type.startsWith("image/") ? ImageIcon : FileIcon}
+        <li class="{card} flex items-center gap-3 px-3 py-2.5">
+          <Icon class="size-5 shrink-0 text-neutral-500 dark:text-neutral-400" aria-hidden="true" />
+          <div class="min-w-0 flex-1">
+            <p class="truncate text-sm font-medium" title={file.name}>{file.name}</p>
+            {#if queued.sending}
+              <!-- Scaled rather than resized: the bar moves on every chunk, and
+                   transform keeps that off the layout and paint path. -->
+              <div
+                class="mt-1.5 h-1.5 overflow-hidden rounded-full bg-neutral-200 dark:bg-neutral-800"
+                role="progressbar"
+                aria-label="Sending {file.name}"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={Math.round(queued.fraction * 100)}
+              >
+                <div
+                  class="h-full w-full origin-left rounded-full bg-blue-600 transition-transform duration-200"
+                  style:transform="scaleX({queued.fraction})"
+                ></div>
+              </div>
+            {:else}
+              <p
+                class="truncate text-xs {queued.error
+                  ? 'text-red-600 dark:text-red-400'
+                  : 'text-neutral-500 dark:text-neutral-400'}"
+              >
+                {formatBytes(file.size)}{queued.error
+                  ? ` · ${queued.error}`
+                  : sending
+                    ? " · waiting"
+                    : ""}
+              </p>
+            {/if}
           </div>
-        {/if}
-      </div>
-      <button
-        type="button"
-        class={btn.icon}
-        onclick={() => (attachment = null)}
-        disabled={sending}
-        aria-label="Remove {attachment.name}"
-        title="Remove"
-      >
-        <X class="size-4" aria-hidden="true" />
-      </button>
-    </div>
+          <button
+            type="button"
+            class={btn.icon}
+            onclick={() => transfers.remove(queued)}
+            disabled={sending}
+            aria-label="Remove {file.name}"
+            title="Remove"
+          >
+            <X class="size-4" aria-hidden="true" />
+          </button>
+        </li>
+      {/each}
+    </ul>
   {/if}
 
   <div class="mt-3 flex flex-wrap items-center gap-2 sm:mt-4 sm:gap-3">
@@ -267,13 +239,13 @@
       <Eraser class="size-4" aria-hidden="true" />
       <span class="hidden sm:inline">Clear</span>
     </button>
-    <input bind:this={fileInput} type="file" class="hidden" onchange={onFilePicked} />
+    <input bind:this={fileInput} type="file" multiple class="hidden" onchange={onFilePicked} />
     <button
       type="button"
       class={btn.secondary}
       onclick={() => fileInput?.click()}
       disabled={sending}
-      aria-label="Attach a file"
+      aria-label="Attach files"
     >
       <Paperclip class="size-4" aria-hidden="true" />
       <span class="hidden sm:inline">Attach</span>
@@ -282,16 +254,19 @@
       <ClipboardPaste class="size-4" aria-hidden="true" />
       Paste
     </button>
-    <button type="button" class="{btn.primary} {btnFill}" onclick={send} disabled={!canSend}>
-      <Send class="size-4" aria-hidden="true" />
-      {#if !sending}
-        Send
-      {:else if progress !== null}
-        Sending {Math.round(progress * 100)}%
-      {:else}
-        Sending…
-      {/if}
-    </button>
+    {#if transfers.running}
+      {@const current = transfers.files.find((f) => f.sending)}
+      <!-- A queue of files takes minutes: leaving has to be possible. -->
+      <button type="button" class="{btn.secondary} {btnFill}" onclick={() => transfers.cancel()}>
+        <X class="size-4" aria-hidden="true" />
+        Cancel {current ? `· ${Math.round(current.fraction * 100)}%` : ""}
+      </button>
+    {:else}
+      <button type="button" class="{btn.primary} {btnFill}" onclick={send} disabled={!canSend}>
+        <Send class="size-4" aria-hidden="true" />
+        {sending ? "Sending…" : "Send"}
+      </button>
+    {/if}
   </div>
 
   <p class="mt-2 text-xs text-neutral-500 dark:text-neutral-400">
@@ -299,12 +274,13 @@
       Pair a device first from the Devices tab.
     {:else if settings.isDesktop}
       <span class="hidden sm:inline">
-        Drop a file here to attach it. Press <kbd class="rounded border border-neutral-300 px-1 font-mono text-[11px] dark:border-neutral-700">⌘</kbd>
+        Drop files here to attach them. Press <kbd class="rounded border border-neutral-300 px-1 font-mono text-[11px] dark:border-neutral-700">⌘</kbd>
         / <kbd class="rounded border border-neutral-300 px-1 font-mono text-[11px] dark:border-neutral-700">Ctrl</kbd>
         + <kbd class="rounded border border-neutral-300 px-1 font-mono text-[11px] dark:border-neutral-700">Enter</kbd> to send.
       </span>
     {:else}
-      Files up to {maxSize}. You can also share a photo or file to NearClip from any app.
+      Files up to {MAX_SIZE_LABEL} each. You can also share photos or files to NearClip from any
+      app.
     {/if}
   </p>
 

@@ -7,11 +7,14 @@ import {
   readSharedItem,
   shareFile,
 } from "@sosweetham/tauri-plugin-sharehub-api";
+import { acceptable } from "./files";
 
 export interface SharedContent {
   text: string;
-  /** The first shared image or file, if any. */
-  file: File | null;
+  /** Every shared image and file NearClip can send, in the order they came. */
+  files: File[];
+  /** One message per shared file that was turned down. */
+  rejected: string[];
 }
 
 /** Takes what another app shared out of the queue; empty when nothing is pending. */
@@ -22,19 +25,31 @@ export async function consumeShared(): Promise<SharedContent> {
       .map((item) => (item.kind === "url" ? item.url : item.text) ?? "")
       .filter((t) => t.trim().length > 0)
       .join("\n");
-    const shared = items.find((item) => item.kind === "image" || item.kind === "file");
+
+    // Unlike a picked file, which stays on disk until it is sent, a shared one
+    // is copied into memory whole. So judge each by its metadata first, then
+    // read them one after another rather than all at once: sharing a dozen
+    // videos should not have to fit in the WebView's heap in one go.
+    const shared = items
+      .filter((item) => item.kind === "image" || item.kind === "file")
+      .map((item) => ({
+        id: item.id,
+        name: item.name ?? "shared-file",
+        size: item.size ?? 0,
+        type: item.mimeType ?? "",
+      }));
+    const { kept, rejected } = acceptable(shared);
+    const files: File[] = [];
     // Read before clearing: clearing deletes the copied bytes.
-    const file = shared
-      ? new File([await readSharedItem(shared.id)], shared.name ?? "shared-file", {
-          type: shared.mimeType ?? "",
-        })
-      : null;
+    for (const item of kept) {
+      files.push(new File([await readSharedItem(item.id)], item.name, { type: item.type }));
+    }
     if (items.length > 0) await clearPendingShares();
-    return { text, file };
+    return { text, files, rejected };
   } catch (err) {
     // A broken share never interrupts the user, but leave a trace for debugging.
     console.warn("share target: could not read pending shares", err);
-    return { text: "", file: null };
+    return { text: "", files: [], rejected: [] };
   }
 }
 
