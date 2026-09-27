@@ -1,6 +1,6 @@
 [package]
 name = "nearclip"
-version = "0.2.0"
+version = "0.3.0"
 description = "LAN-only encrypted clipboard and file sharing between your devices"
 authors = ["Edomatch"]
 license = "MIT"
