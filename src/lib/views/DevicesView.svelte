@@ -1,6 +1,8 @@
 <script lang="ts">
   import { ClipboardCopy, MonitorSmartphone, Plus, QrCode, RefreshCw, ScanLine } from "@lucide/svelte";
   import DeviceCard from "../components/DeviceCard.svelte";
+  import HistoryRow from "../components/HistoryRow.svelte";
+  import { history } from "../stores/history.svelte";
   import { confirm } from "../stores/confirm.svelte";
   import { devices } from "../stores/devices.svelte";
   import { addByAddress, qr } from "../stores/dialogs.svelte";
@@ -8,15 +10,46 @@
   import { pairing } from "../stores/pairing.svelte";
   import { settings } from "../stores/settings.svelte";
   import { errorMessage, toasts } from "../stores/toasts.svelte";
-  import type { DeviceView } from "../types";
+  import type { DeviceView, HistoryItem } from "../types";
   import { api } from "../api";
   import { btn, btnFill, card, muted, page, pageSubtitle, pageTitle, sectionTitle } from "../ui";
 
   interface Props {
     onSend: (deviceId: string) => void;
+    onOpenHistory: () => void;
   }
 
-  let { onSend }: Props = $props();
+  let { onSend, onOpenHistory }: Props = $props();
+
+  /** How many exchanges to show under a device before pointing at History. */
+  const RECENT_PER_DEVICE = 3;
+
+  interface Recent {
+    items: HistoryItem[];
+    /** True when History holds more than what is shown here. */
+    more: boolean;
+  }
+
+  /**
+   * Latest exchanges per paired device, newest first: one pass over the history
+   * rather than one scan per device. A send to every device counts for each of
+   * them.
+   */
+  let exchanges = $derived.by(() => {
+    const byDevice = new Map<string, Recent>(
+      devices.paired.map((device) => [device.deviceId, { items: [], more: false }]),
+    );
+    for (const item of history.items) {
+      const buckets =
+        item.peerId === "all" ? [...byDevice.values()] : [byDevice.get(item.peerId)];
+      for (const bucket of buckets) {
+        if (!bucket) continue;
+        if (bucket.items.length < RECENT_PER_DEVICE) bucket.items.push(item);
+        else bucket.more = true;
+      }
+    }
+    return byDevice;
+  });
 
   // Without discovery only paired devices exist in the UI; unpaired ones are never listed.
   let showAvailable = $derived(settings.settings.discovery);
@@ -43,7 +76,7 @@
 
   async function refresh() {
     try {
-      await devices.refresh();
+      await devices.check();
     } catch (err) {
       toasts.error(`Could not refresh devices: ${errorMessage(err)}`);
     }
@@ -135,8 +168,9 @@
             No paired devices yet. Pair one from the list below.
           </p>
         {:else}
-          <ul class="flex flex-col gap-2">
+          <ul class="flex flex-col gap-3">
             {#each devices.paired as device (device.deviceId)}
+              {@const recent = exchanges.get(device.deviceId)}
               <li>
                 <DeviceCard
                   {device}
@@ -144,6 +178,26 @@
                   onUnpair={unpair}
                   onSend={(d) => onSend(d.deviceId)}
                 />
+                <!-- What was exchanged with this device, so files can be opened
+                     without a detour through History. -->
+                {#if recent && recent.items.length > 0}
+                  <ul class="mt-2 flex flex-col gap-2 pl-4 sm:pl-6">
+                    {#each recent.items as item (item.id)}
+                      <li><HistoryRow {item} showPeer={false} /></li>
+                    {/each}
+                    {#if recent.more}
+                      <li>
+                        <button
+                          type="button"
+                          class="{btn.ghost} h-8 px-2 text-xs"
+                          onclick={onOpenHistory}
+                        >
+                          See all in History
+                        </button>
+                      </li>
+                    {/if}
+                  </ul>
+                {/if}
               </li>
             {/each}
           </ul>

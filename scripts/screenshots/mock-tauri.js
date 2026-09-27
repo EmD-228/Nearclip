@@ -13,10 +13,10 @@
   const other = phone ? mac : pixel;
 
   const devices = phone
-    ? [{ ...mac, paired: true, addr: "192.168.1.148:47821", via: "qr" }]
+    ? [{ ...mac, paired: true, addr: "192.168.1.148:47821", via: "qr", online: true, lastSeenMs: now }]
     : [
-        { ...pixel, paired: true, addr: "192.168.1.67:47821", via: "qr" },
-        { deviceId: "5b2e0c7a91d34f6e8a0b1c2d3e4f5a6b", name: "Office PC", paired: true, addr: "192.168.1.31:47821", via: "address" },
+        { ...pixel, paired: true, addr: "192.168.1.67:47821", via: "qr", online: true, lastSeenMs: now },
+        { deviceId: "5b2e0c7a91d34f6e8a0b1c2d3e4f5a6b", name: "Office PC", paired: true, addr: "192.168.1.31:47821", via: "address", online: false, lastSeenMs: now - 40 * min },
       ];
 
   const history = [
@@ -35,6 +35,7 @@
       desktop: !phone,
     },
     list_devices: devices,
+    check_devices: devices,
     get_history: history,
     get_settings: {
       deviceName: self.name,

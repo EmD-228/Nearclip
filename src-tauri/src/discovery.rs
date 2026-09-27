@@ -153,6 +153,17 @@ fn handle_event(app: &AppHandle, event: ServiceEvent) {
     }
 }
 
+/// True while mDNS has a fresh announcement for the device, which is proof
+/// enough that it is on the network right now.
+pub fn seen_recently(state: &AppState, device_id: &str) -> bool {
+    state
+        .discovered
+        .lock()
+        .unwrap()
+        .get(device_id)
+        .is_some_and(|d| !d.is_stale())
+}
+
 pub fn emit_devices(app: &AppHandle) {
     let views = app.state::<AppState>().device_views();
     if let Err(e) = app.emit("devices-changed", views) {

@@ -25,6 +25,10 @@ export interface DeviceView {
   addr: string | null;
   /** Set for paired devices only */
   via: PairedVia | null;
+  /** Answered the last presence check; null until that first check settles */
+  online: boolean | null;
+  /** Last time this device answered, null when it never did since launch */
+  lastSeenMs: number | null;
 }
 
 export type Direction = "sent" | "received";
