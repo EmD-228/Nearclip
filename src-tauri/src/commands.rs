@@ -14,7 +14,7 @@ use crate::state::{
     forget_peer, save_history, save_settings, AppState, DeviceView, HistoryItem, SendResult,
     Settings,
 };
-use crate::{discovery, pairing, session, transfer, transport, tray};
+use crate::{discovery, pairing, presence, session, transfer, transport, tray};
 
 const MAX_NAME_LEN: usize = 48;
 
@@ -67,6 +67,15 @@ pub fn set_device_name(app: AppHandle, state: State<'_, AppState>, name: String)
 #[tauri::command]
 pub fn list_devices(state: State<'_, AppState>) -> Vec<DeviceView> {
     state.device_views()
+}
+
+/// Checks every paired device now, instead of waiting for the next round. The
+/// returned list is what the caller asked for, so no `devices-changed` event
+/// is emitted on top of it.
+#[tauri::command]
+pub async fn check_devices(app: AppHandle) -> Vec<DeviceView> {
+    presence::check_all(&app).await;
+    app.state::<AppState>().device_views()
 }
 
 #[tauri::command]

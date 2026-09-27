@@ -107,21 +107,35 @@ pub async fn connect(addr: SocketAddr) -> Result<TcpStream> {
     Ok(stream)
 }
 
-/// Current address for a device: live mDNS data first, last known address otherwise.
-pub fn resolve_peer_addr(state: &AppState, device_id: &str) -> Option<SocketAddr> {
+/// Every address a device might answer on, best first: what mDNS sees right
+/// now, then the address that last worked. A device whose DHCP lease moved it
+/// is still reachable through one of them, and `connect_any` races them, so
+/// callers do not have to guess which one is current.
+pub fn peer_addrs(state: &AppState, device_id: &str) -> Vec<SocketAddr> {
+    let mut addrs: Vec<SocketAddr> = Vec::new();
     if let Some(d) = state.discovered.lock().unwrap().get(device_id) {
         if !d.is_stale() {
-            if let Some(addr) = d.best_addr() {
-                return Some(addr);
-            }
+            // `best_addr` first: it holds the IPv4-before-IPv6 preference.
+            let best = d.best_addr();
+            addrs.extend(best);
+            addrs.extend(
+                d.addrs
+                    .iter()
+                    .map(|ip| SocketAddr::new(*ip, d.port))
+                    .filter(|a| Some(*a) != best),
+            );
         }
     }
-    state
+    let last_seen = state
         .peers
         .lock()
         .unwrap()
         .get(device_id)
-        .and_then(|p| p.last_seen_addr)
+        .and_then(|p| p.last_seen_addr);
+    if let Some(addr) = last_seen.filter(|a| !addrs.contains(a)) {
+        addrs.push(addr);
+    }
+    addrs
 }
 
 /// Where a peer can be reached back: the IP it connected from, on the

@@ -23,6 +23,8 @@ export const api = {
   setDeviceName: (name: string) => invoke<void>("set_device_name", { name }),
 
   listDevices: () => invoke<DeviceView[]>("list_devices"),
+  /** Same list, after checking which paired devices answer right now. */
+  checkDevices: () => invoke<DeviceView[]>("check_devices"),
 
   startPairing: (deviceId: string) => invoke<void>("start_pairing", { deviceId }),
   confirmPairing: (deviceId: string, accepted: boolean) =>

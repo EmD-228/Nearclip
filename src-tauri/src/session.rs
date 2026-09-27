@@ -19,7 +19,7 @@ use crate::protocol::{
     Wire, FEATURE_FILES, MAX_TEXT_BYTES, PROTO_VERSION,
 };
 use crate::state::{forget_peer, now_ms, AppState, Direction, HistoryItem, PeerRecord, SendResult};
-use crate::{transfer, transport};
+use crate::{presence, transfer, transport};
 
 const SEND_TIMEOUT: Duration = Duration::from_secs(10);
 pub const IDLE_TIMEOUT: Duration = Duration::from_secs(30);
@@ -35,7 +35,6 @@ struct ClipboardSentEvent {
 pub struct Session {
     pub stream: TcpStream,
     pub key: [u8; 32],
-    pub addr: SocketAddr,
     /// What the other device announced it supports (client side only).
     pub features: Vec<String>,
 }
@@ -144,11 +143,10 @@ fn forget_peer_in_background(app: &AppHandle, device_id: &str) {
 /// no longer recognizes us, the local pairing is dropped as a side effect.
 pub async fn open_session(app: &AppHandle, peer: &PeerRecord) -> Result<Session> {
     let state = app.state::<AppState>();
-    let addr = transport::resolve_peer_addr(&state, &peer.device_id)
-        .or(peer.last_seen_addr)
-        .ok_or(AppError::DeviceUnavailable)?;
-
-    let mut stream = transport::connect(addr).await?;
+    // Race every address the device might be on: the one that answers is the
+    // current one, even when DHCP moved the device since the last send.
+    let addrs = transport::peer_addrs(&state, &peer.device_id);
+    let (mut stream, addr) = transport::connect_any(&addrs).await?;
     let salt_c: [u8; 32] = random_bytes();
     write_frame(
         &mut stream,
@@ -187,11 +185,13 @@ pub async fn open_session(app: &AppHandle, peer: &PeerRecord) -> Result<Session>
             )))
         }
     };
+    // The handshake is the proof of both facts the device list needs: where
+    // the peer answers, and that it is there at all.
+    presence::note_reached(app, &peer.device_id, addr);
     let key = derive_session_key(&peer.pairing_key, &salt_c, &salt_s);
     Ok(Session {
         stream,
         key,
-        addr,
         features,
     })
 }
@@ -211,7 +211,7 @@ pub async fn send_text_to_peer(
     text: &str,
 ) -> Result<()> {
     let my_id = app.state::<AppState>().identity.device_id.clone();
-    let addr = within(SEND_TIMEOUT, async {
+    within(SEND_TIMEOUT, async {
         let mut session = open_session(app, peer).await?;
         let frame = encrypt_plain(
             &session.key,
@@ -223,13 +223,9 @@ pub async fn send_text_to_peer(
             },
         )?;
         write_frame(&mut session.stream, &frame).await?;
-        expect_ack(&mut session, item_id).await?;
-        Ok(session.addr)
+        expect_ack(&mut session, item_id).await
     })
-    .await?;
-
-    transport::remember_peer_addr(app, &peer.device_id, addr);
-    Ok(())
+    .await
 }
 
 /// Best effort: tells a peer we removed the pairing so it forgets us too.
@@ -293,9 +289,14 @@ pub async fn serve(
     let mut session = Session {
         stream,
         key: derive_session_key(&peer.pairing_key, &salt_c, &salt_s),
-        addr: transport::listen_addr(peer_addr, port),
         features: Vec::new(),
     };
+    // A peer that just reached us is online, whatever the last check thought.
+    presence::note_reached(
+        &app,
+        &peer.device_id,
+        transport::listen_addr(peer_addr, port),
+    );
 
     loop {
         let wire = match tokio::time::timeout(IDLE_TIMEOUT, read_frame(&mut session.stream)).await {
@@ -343,7 +344,6 @@ pub async fn serve(
             other => return Err(AppError::protocol(format!("unexpected payload {other:?}"))),
         };
         deliver_received(&app, &state, item);
-        transport::remember_peer_addr(&app, &peer.device_id, session.addr);
     }
 }
 

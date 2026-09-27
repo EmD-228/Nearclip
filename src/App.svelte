@@ -111,7 +111,7 @@
     class="min-w-0 flex-1 overflow-y-auto pb-[calc(3.5rem+env(safe-area-inset-bottom))] sm:pb-0"
   >
     {#if view === "devices"}
-      <DevicesView onSend={openSend} />
+      <DevicesView onSend={openSend} onOpenHistory={() => (view = "history")} />
     {:else if view === "send"}
       <SendView bind:target={sendTarget} bind:text={sendDraft} bind:attachment={sendAttachment} />
     {:else if view === "history"}

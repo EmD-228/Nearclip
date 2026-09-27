@@ -220,11 +220,9 @@ pub async fn end(app: &AppHandle, id: &str) -> Result<Vec<SendResult>> {
             Ok(mut session) => within(IDLE_TIMEOUT, async {
                 let frame = encrypt_plain(&session.key, &end)?;
                 write_frame(&mut session.stream, &frame).await?;
-                session::expect_ack(&mut session, id).await?;
-                Ok(session.addr)
+                session::expect_ack(&mut session, id).await
             })
             .await
-            .map(|addr| crate::transport::remember_peer_addr(app, &target.peer.device_id, addr))
             .map_err(|e| e.to_string()),
             Err(e) => Err(e),
         };
@@ -409,14 +407,12 @@ mod tests {
         let (client, server) =
             tokio::join!(tokio::net::TcpStream::connect(addr), listener.accept());
         let key: [u8; 32] = random_bytes();
-        let (server, peer_addr) = server.unwrap();
-        let session = |stream, addr| Session {
+        let session = |stream| Session {
             stream,
             key,
-            addr,
             features: Vec::new(),
         };
-        (session(client.unwrap(), addr), session(server, peer_addr))
+        (session(client.unwrap()), session(server.unwrap().0))
     }
 
     fn temp_dir() -> PathBuf {

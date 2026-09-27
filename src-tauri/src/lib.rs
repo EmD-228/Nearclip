@@ -5,6 +5,7 @@ mod discovery;
 mod error;
 mod identity;
 mod pairing;
+mod presence;
 mod protocol;
 mod secrets;
 mod session;
@@ -102,6 +103,7 @@ pub fn run() {
                 settings: Mutex::new(settings.clone()),
                 peers: Mutex::new(peers),
                 discovered: Mutex::new(HashMap::new()),
+                presence: Mutex::new(HashMap::new()),
                 history: Mutex::new(history),
                 pairings: Mutex::new(HashMap::new()),
                 pair_token: Mutex::new(None),
@@ -126,6 +128,7 @@ pub fn run() {
 
             discovery::set_enabled(&handle, settings.discovery);
             discovery::start_stale_sweep(&handle);
+            presence::start(handle.clone());
 
             #[cfg(desktop)]
             {
@@ -171,6 +174,7 @@ pub fn run() {
             commands::get_identity,
             commands::set_device_name,
             commands::list_devices,
+            commands::check_devices,
             commands::start_pairing,
             commands::confirm_pairing,
             commands::cancel_pairing,

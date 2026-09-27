@@ -103,8 +103,10 @@ struct PairingResultEvent {
 /// Starts pairing with a discovered device. Progress is reported through events.
 pub fn start(app: AppHandle, device_id: String) -> Result<()> {
     let state = app.state::<AppState>();
-    let addr =
-        transport::resolve_peer_addr(&state, &device_id).ok_or(AppError::DeviceUnavailable)?;
+    let addrs = transport::peer_addrs(&state, &device_id);
+    if addrs.is_empty() {
+        return Err(AppError::DeviceUnavailable);
+    }
     let peer_name = state
         .discovered
         .lock()
@@ -117,7 +119,7 @@ pub fn start(app: AppHandle, device_id: String) -> Result<()> {
         device_id.clone(),
         peer_name,
         Some(device_id),
-        vec![addr],
+        addrs,
         None,
         PairedVia::Discovery,
     )

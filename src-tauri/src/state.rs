@@ -65,7 +65,7 @@ impl Settings {
     }
 }
 
-/// How a pairing was established; shown instead of an online/offline state.
+/// How a pairing was established; shown next to the device's connection state.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum PairedVia {
@@ -123,6 +123,20 @@ impl DiscoveredDevice {
     }
 }
 
+/// What the last presence check found for a device; see `presence`.
+#[derive(Debug, Clone, Copy, Default, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Presence {
+    /// None until the first check answers, so the UI can say so instead of
+    /// claiming a device is gone.
+    pub online: Option<bool>,
+    /// Last time the device answered. None when it never has in this run.
+    pub last_seen_ms: Option<i64>,
+    /// Checks missed in a row; a single miss is not worth showing.
+    #[serde(skip)]
+    pub misses: u8,
+}
+
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DeviceView {
@@ -132,6 +146,8 @@ pub struct DeviceView {
     pub addr: Option<String>,
     /// Set for paired devices only.
     pub via: Option<PairedVia>,
+    #[serde(flatten)]
+    pub presence: Presence,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
@@ -202,6 +218,8 @@ pub struct AppState {
     pub settings: Mutex<Settings>,
     pub peers: Mutex<HashMap<String, PeerRecord>>,
     pub discovered: Mutex<HashMap<String, DiscoveredDevice>>,
+    /// Paired devices only, keyed by device id; filled by the presence checks.
+    pub presence: Mutex<HashMap<String, Presence>>,
     pub history: Mutex<VecDeque<HistoryItem>>,
     pub pairings: Mutex<HashMap<String, PairingHandle>>,
     /// Token of the QR code currently displayed, if any (one-time, short-lived).
@@ -218,6 +236,7 @@ impl AppState {
     pub fn device_views(&self) -> Vec<DeviceView> {
         let peers = self.peers.lock().unwrap();
         let discovered = self.discovered.lock().unwrap();
+        let presence = self.presence.lock().unwrap();
         let mut out: Vec<DeviceView> = Vec::new();
 
         for (id, peer) in peers.iter() {
@@ -233,6 +252,7 @@ impl AppState {
                     .or(peer.last_seen_addr)
                     .map(|a| a.to_string()),
                 via: Some(peer.via),
+                presence: presence.get(id).copied().unwrap_or_default(),
             });
         }
         for (id, d) in discovered.iter() {
@@ -245,6 +265,12 @@ impl AppState {
                 paired: false,
                 addr: d.best_addr().map(|a| a.to_string()),
                 via: None,
+                // Discovery only lists devices it can see right now, so being
+                // listed is the whole answer for an unpaired one.
+                presence: Presence {
+                    online: Some(true),
+                    ..Presence::default()
+                },
             });
         }
         out.sort_by(|a, b| {
