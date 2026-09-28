@@ -1,0 +1,7 @@
+Chaque appareil indique maintenant s'il est joignable, et NearClip le retrouve tout seul quand son adresse change.
+
+Les derniers échanges apparaissent sous chaque appareil.
+
+Envoyez plusieurs fichiers à la fois, chacun avec sa progression, et annulez un envoi en cours.
+
+Les fichiers reçus sont enregistrés dans Téléchargements/NearClip et s'ouvrent directement depuis l'application.
