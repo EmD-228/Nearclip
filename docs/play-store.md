@@ -190,10 +190,12 @@ cannot create an app — a `v*` tag can do the rest. The `play` job in
 Without that secret the job builds the bundle and stops, so a fork never tries
 to publish.
 
-**What happens on a tag:** the bundle goes to the `internal` track, already
-released to its testers. To aim elsewhere, run the workflow by hand from the
-Actions tab and set `play_track` to `alpha`, `beta` or `production` — or to the
-name of a custom closed track, as the console spells it.
+**What happens on a tag:** the bundle goes to the `alpha` track, released to its
+testers. That is the API's name for the closed test the console shows as "Tests
+fermés - Alpha", and it is the track whose testers have to stay opted in for the
+two weeks Google counts before production opens up. To aim elsewhere, run the
+workflow by hand from the Actions tab and set `play_track` to `internal`, `beta`
+or `production` — or to the name of a custom track, as the console spells it.
 
 **Release notes** come from `distribution/whatsnew/whatsnew-<locale>`, one short
 file per listing language. They are part of the commit, so rewrite them with

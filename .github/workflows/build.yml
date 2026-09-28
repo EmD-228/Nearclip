@@ -22,8 +22,8 @@ on:
   workflow_dispatch:
     inputs:
       play_track:
-        description: "Google Play track for a tagged run (internal, alpha, beta, production)"
-        default: internal
+        description: "Google Play track for a tagged run (alpha, internal, beta, production)"
+        default: alpha
 
 # Read-only token everywhere except the release job.
 permissions:
@@ -177,7 +177,9 @@ jobs:
           serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
           packageName: com.nearclip
           releaseFiles: bundle/*/*.aab
-          track: ${{ inputs.play_track || 'internal' }}
+          # "alpha" is what the API calls the closed test, the track whose
+          # testers have to stay opted in before production opens up.
+          track: ${{ inputs.play_track || 'alpha' }}
           status: completed
           whatsNewDirectory: distribution/whatsnew
 
