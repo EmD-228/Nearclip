@@ -168,7 +168,42 @@ First release on Google Play.
 • Also available for macOS, Windows and Linux at github.com/EmD-228/Nearclip
 ```
 
-## 9. After the first release
+## 9. Publishing from CI
+
+Once the first bundle has been uploaded by hand — Google requires that, the API
+cannot create an app — a `v*` tag can do the rest. The `play` job in
+`.github/workflows/build.yml` builds the bundle and sends it to a track.
+
+**What to set up, once:**
+
+1. **Play Console → Setup → API access**. Link a Google Cloud project, then
+   create a service account. The console walks through it.
+2. In Google Cloud, give that service account a key: **Keys → Add key → JSON**.
+   Download it. It is a password to your listing; it is never committed.
+3. Back in **Play Console → Users and permissions**, invite the service account
+   address and grant it, for this app only: **Release apps to testing tracks**
+   and **Release to production** if you want CI to reach production. Nothing
+   else.
+4. In GitHub, **Settings → Secrets and variables → Actions → New repository
+   secret**, name `PLAY_SERVICE_ACCOUNT_JSON`, paste the whole JSON file.
+
+Without that secret the job builds the bundle and stops, so a fork never tries
+to publish.
+
+**What happens on a tag:** the bundle goes to the `internal` track, already
+released to its testers. To aim elsewhere, run the workflow by hand from the
+Actions tab and set `play_track` to `alpha`, `beta` or `production` — or to the
+name of a custom closed track, as the console spells it.
+
+**Release notes** come from `distribution/whatsnew/whatsnew-<locale>`, one short
+file per listing language. They are part of the commit, so rewrite them with
+each version; they are what testers read in Play, not the GitHub changelog.
+
+**`versionCode`** is derived from the version in `tauri.conf.json`, and Play
+refuses a bundle whose code is not higher than the last. So a Play release needs
+a version bump, the same one that drives the GitHub release.
+
+## 10. After the first release
 
 - Bump the version in `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml` and
   `package.json`, so `versionCode` grows.

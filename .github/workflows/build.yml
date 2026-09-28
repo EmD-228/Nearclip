@@ -7,6 +7,11 @@
 # Android APK is signed only when the repository has the secrets
 # ANDROID_KEYSTORE_B64 (base64 of the .jks) and ANDROID_KEYSTORE_PASSWORD;
 # otherwise the job builds an unsigned APK as a compile check.
+#
+# A v* tag also sends the Android bundle to Google Play, when the secret
+# PLAY_SERVICE_ACCOUNT_JSON holds a service account key with release rights.
+# The release notes come from distribution/whatsnew, which has to be rewritten
+# for each version; see docs/play-store.md.
 name: Build
 
 on:
@@ -15,6 +20,10 @@ on:
     tags: ["v*"]
   pull_request:
   workflow_dispatch:
+    inputs:
+      play_track:
+        description: "Google Play track for a tagged run (internal, alpha, beta, production)"
+        default: internal
 
 # Read-only token everywhere except the release job.
 permissions:
@@ -119,12 +128,22 @@ jobs:
           echo "NDK_HOME=$ndk" >> "$GITHUB_ENV"
       - uses: dtolnay/rust-toolchain@stable
         with:
-          targets: aarch64-linux-android
+          targets: aarch64-linux-android, armv7-linux-androideabi
       - uses: swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
       - run: pnpm install --frozen-lockfile
       - run: pnpm tauri android build --apk --target aarch64
+      # Play takes a bundle, not an APK, and splits it per device itself. Built
+      # only for releases: it costs a second compile, for 32-bit phones too.
+      - if: startsWith(github.ref, 'refs/tags/v')
+        run: pnpm tauri android build --aab --target aarch64 --target armv7
+      - if: startsWith(github.ref, 'refs/tags/v')
+        uses: actions/upload-artifact@v4
+        with:
+          name: nearclip-android-bundle
+          path: src-tauri/gen/android/app/build/outputs/bundle/*/*.aab
+          if-no-files-found: error
       # Same naming as the desktop installers; an unsigned build keeps its suffix.
       - run: |
           for f in "$APK_DIR"/app-universal-release*.apk; do
@@ -135,6 +154,32 @@ jobs:
           name: nearclip-android-arm64
           path: ${{ env.APK_DIR }}/*.apk
           if-no-files-found: error
+
+  # Sends the bundle to Google Play. Skipped, quietly, when the repository has
+  # no service account key, so a fork never tries to publish. The track defaults
+  # to the closed test; a manual run can aim at another one.
+  play:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: android
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: nearclip-android-bundle
+          path: bundle
+      - id: key
+        env:
+          PLAY_KEY: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+        run: echo "present=${{ env.PLAY_KEY != '' }}" >> "$GITHUB_OUTPUT"
+      - if: steps.key.outputs.present == 'true'
+        uses: r0adkll/upload-google-play@eb49699984a39f23558439581660aa6f088acfd6 # v1.1.5
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: com.nearclip
+          releaseFiles: bundle/*/*.aab
+          track: ${{ inputs.play_track || 'internal' }}
+          status: completed
+          whatsNewDirectory: distribution/whatsnew
 
   release:
     if: startsWith(github.ref, 'refs/tags/v')

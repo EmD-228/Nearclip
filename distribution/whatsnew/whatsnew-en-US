@@ -1,0 +1,7 @@
+Devices now show whether they can be reached, and NearClip finds a device again on its own when its address changes.
+
+Recent exchanges appear under each device.
+
+Send several files at once, each with its own progress, and cancel a send in progress.
+
+Received files are saved to Downloads/NearClip and can be opened straight from the app.
