@@ -1,11 +1,12 @@
-// Inbound "Share to NearClip" (Android/iOS share sheet) and outbound sharing of
-// received files. Only used on mobile, where the sharehub plugin is registered.
+// Inbound "Share to NearClip": what another app handed us through the system
+// share sheet. Only used on mobile, where the sharehub plugin is registered.
+// Sharing a received file back out goes through `api.shareReceivedFile`, since
+// Android hands a saved file back as a URI, not a path.
 import {
   clearPendingShares,
   getPendingShares,
   onShare,
   readSharedItem,
-  shareFile,
 } from "@sosweetham/tauri-plugin-sharehub-api";
 import { acceptable } from "./files";
 
@@ -59,9 +60,4 @@ export function onShared(cb: () => void): Promise<() => void> {
     console.warn("share target: could not subscribe", err);
     return () => {};
   });
-}
-
-/** Opens the system share sheet for a received file, so it can be opened or saved elsewhere. */
-export function shareReceivedFile(path: string, name: string, mime: string): Promise<void> {
-  return shareFile(`file://${path}`, { mimeType: mime || undefined, title: name });
 }

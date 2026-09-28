@@ -6,6 +6,7 @@
     ArrowDownLeft,
     ArrowUpRight,
     Copy,
+    ExternalLink,
     File as FileIcon,
     FolderOpen,
     Share2,
@@ -13,7 +14,6 @@
   import { revealItemInDir } from "@tauri-apps/plugin-opener";
   import { api } from "../api";
   import { formatBytes, fullTime, relativeTime } from "../format";
-  import { shareReceivedFile } from "../share";
   import { clock } from "../stores/clock.svelte";
   import { settings } from "../stores/settings.svelte";
   import { errorMessage, toasts } from "../stores/toasts.svelte";
@@ -36,18 +36,32 @@
 
   const rowClass = "flex min-h-11 min-w-0 flex-1 items-start gap-3 px-4 py-3 text-left";
 
-  /** What tapping the item does: copy text, or open a received file. Sent files have no action. */
-  let action = $derived.by<ItemAction | null>(() => {
+  /**
+   * What the item offers, the first being what tapping the row does: copy text,
+   * open a received file, or hand it to another app. A sent file offers nothing,
+   * since its copy lives on the other device.
+   */
+  let actions = $derived.by<ItemAction[]>(() => {
     const file = item.file;
     if (!file) {
-      return { label: "Copy", icon: Copy, run: () => copy(item.text) };
+      return [{ label: "Copy", icon: Copy, run: () => copy(item.text) }];
     }
-    const path = file.path;
-    if (!path) return null;
-    return settings.isDesktop
-      ? { label: "Show in folder", icon: FolderOpen, run: () => revealItemInDir(path) }
-      : { label: "Share", icon: Share2, run: () => shareReceivedFile(path, file.name, file.mime) };
+    if (settings.isDesktop) {
+      const path = file.path;
+      return path
+        ? [{ label: "Show in folder", icon: FolderOpen, run: () => revealItemInDir(path) }]
+        : [];
+    }
+    // Android hands a saved file back as a URI; a path alone cannot open it.
+    const uri = file.uri;
+    if (!uri) return [];
+    return [
+      { label: "Open", icon: ExternalLink, run: () => api.openReceivedFile(uri, file.mime) },
+      { label: "Share", icon: Share2, run: () => api.shareReceivedFile(uri, file.mime) },
+    ];
   });
+
+  let primary = $derived(actions[0]);
 
   async function run(a: ItemAction) {
     try {
@@ -68,25 +82,29 @@
     ? ''
     : 'border-red-200 dark:border-red-900/60'}"
 >
-  {#if action}
-    {@const ActionIcon = action.icon}
+  {#if primary}
     <button
       type="button"
       class="{rowClass} transition-colors hover:bg-neutral-50 dark:hover:bg-neutral-800/60 {focusRing} focus-visible:ring-inset"
-      onclick={() => run(action)}
-      title={action.label}
+      onclick={() => run(primary)}
+      title={primary.label}
     >
       {@render body()}
     </button>
-    <button
-      type="button"
-      class="{btn.icon} m-2 self-center"
-      aria-label={action.label}
-      title={action.label}
-      onclick={() => run(action)}
-    >
-      <ActionIcon class="size-4" aria-hidden="true" />
-    </button>
+    <div class="flex shrink-0 items-center gap-1 self-center px-2">
+      {#each actions as action}
+        {@const ActionIcon = action.icon}
+        <button
+          type="button"
+          class={btn.icon}
+          aria-label={action.label}
+          title={action.label}
+          onclick={() => run(action)}
+        >
+          <ActionIcon class="size-4" aria-hidden="true" />
+        </button>
+      {/each}
+    </div>
   {:else}
     <div class={rowClass}>{@render body()}</div>
   {/if}
@@ -132,6 +150,12 @@
         <span class="truncate">{item.file.name}</span>
         <span class="shrink-0 text-xs text-neutral-400">{formatBytes(item.file.size)}</span>
       </span>
+      <!-- Phones hide the folder a file went to, so the row says where it is. -->
+      {#if !settings.isDesktop && item.file.path}
+        <span class="mt-0.5 block truncate text-xs text-neutral-500 dark:text-neutral-400">
+          Saved to {item.file.path}
+        </span>
+      {/if}
     {:else}
       <span
         class="mt-1 line-clamp-2 block text-sm wrap-break-word whitespace-pre-wrap {item.ok
