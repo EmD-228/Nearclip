@@ -200,9 +200,13 @@ pub struct FileMeta {
     pub name: String,
     pub size: u64,
     pub mime: String,
-    /// Where a received file was saved. None for sent files.
+    /// Where a received file was saved, as a person reads it. None for sent files.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub path: Option<String>,
+    /// Android only: what opens or shares the saved file, since the system owns
+    /// the Downloads folder and hands back a URI rather than a path.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub uri: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]

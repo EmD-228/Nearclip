@@ -14,7 +14,7 @@ use crate::state::{
     forget_peer, save_history, save_settings, AppState, DeviceView, HistoryItem, SendResult,
     Settings,
 };
-use crate::{discovery, pairing, presence, session, transfer, transport, tray};
+use crate::{discovery, downloads, pairing, presence, session, transfer, transport, tray};
 
 const MAX_NAME_LEN: usize = 48;
 
@@ -250,6 +250,19 @@ pub fn apply_settings_side_effects(app: &AppHandle, settings: &Settings) {
         }
     }
     let _ = app.state::<AppState>();
+}
+
+/// Opens a received file, or hands it to another app. Android only: the system
+/// owns its Downloads folder, so a saved file is reached through a URI rather
+/// than a path. Desktop reveals the file in its folder from the frontend.
+#[tauri::command]
+pub fn open_received_file(app: AppHandle, uri: String, mime: String) -> Result<()> {
+    downloads::open(&app, &uri, &mime)
+}
+
+#[tauri::command]
+pub fn share_received_file(app: AppHandle, uri: String, mime: String) -> Result<()> {
+    downloads::share(&app, &uri, &mime)
 }
 
 fn clean_name(name: &str) -> Result<String> {

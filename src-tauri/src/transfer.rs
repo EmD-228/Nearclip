@@ -133,6 +133,7 @@ pub async fn begin(
             size,
             mime,
             path: None,
+            uri: None,
         }),
     };
     let transfer = Transfer {
@@ -258,9 +259,12 @@ pub async fn receive(
     if size == 0 || size > MAX_FILE_BYTES {
         return Err(reject(session, "too_large", &too_large_message()).await);
     }
-    receive_into(&received_dir(app)?, session, id, name, size, mime).await
+    let (path, meta) = receive_into(&received_dir(app)?, session, id, name, size, mime).await?;
+    crate::downloads::store(app, &path, meta).await
 }
 
+/// Returns where the file was written along with its metadata: on Android the
+/// two part ways, since the file moves on to the system's Downloads folder.
 async fn receive_into(
     dir: &Path,
     session: &mut Session,
@@ -268,7 +272,7 @@ async fn receive_into(
     name: String,
     size: u64,
     mime: String,
-) -> Result<FileMeta> {
+) -> Result<(PathBuf, FileMeta)> {
     let name = clean_file_name(&name);
     let part = PartFile(dir.join(format!(".{id}.part")));
     let mut file = tokio::fs::File::create(&part.0).await?;
@@ -312,12 +316,14 @@ async fn receive_into(
         let ack = encrypt_plain(&session.key, &Plain::Ack { id })?;
         write_frame(&mut session.stream, &ack).await?;
         log::info!("received {} ({size} bytes)", path.display());
-        return Ok(FileMeta {
+        let meta = FileMeta {
             name,
             size,
             mime,
             path: Some(path.to_string_lossy().into_owned()),
-        });
+            uri: None,
+        };
+        return Ok((path, meta));
     }
 }
 
@@ -330,20 +336,16 @@ impl Drop for PartFile {
     }
 }
 
-/// Where received files go: Downloads/NearClip. On Android, `home_dir` is the
-/// shared storage of the current user or work profile, whose Download folder
-/// is writable without a permission from Android 11; if that fails, files go
-/// to the app's own downloads folder.
+/// Where received files go: Downloads/NearClip on desktop, a private staging
+/// directory on Android, where the system owns Downloads.
 fn received_dir(app: &AppHandle) -> Result<PathBuf> {
-    if cfg!(target_os = "android") {
-        if let Ok(home) = app.path().home_dir() {
-            let public = home.join("Download").join("NearClip");
-            if std::fs::create_dir_all(&public).is_ok() {
-                return Ok(public);
-            }
-        }
-    }
-    let dir = app.path().download_dir()?.join("NearClip");
+    // On Android the file only lands here on its way to the system Downloads
+    // folder, so a private directory that is always writable is what is needed.
+    let dir = if cfg!(target_os = "android") {
+        app.path().app_cache_dir()?.join("incoming")
+    } else {
+        app.path().download_dir()?.join("NearClip")
+    };
     std::fs::create_dir_all(&dir)?;
     Ok(dir)
 }
@@ -459,9 +461,9 @@ mod tests {
         };
         let (file, ()) = tokio::join!(receiving, sending);
 
-        let file = file.unwrap();
+        let (path, file) = file.unwrap();
         assert_eq!(file.name, "photo.jpg");
-        assert_eq!(std::fs::read(file.path.unwrap()).unwrap(), data);
+        assert_eq!(std::fs::read(&path).unwrap(), data);
         assert_eq!(
             std::fs::read_dir(&dir).unwrap().count(),
             1,

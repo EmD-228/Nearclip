@@ -41,6 +41,11 @@ export const api = {
   sendFileChunk: (id: string, data: string) => invoke<number>("send_file_chunk", { id, data }),
   sendFileEnd: (id: string) => invoke<SendResult[]>("send_file_end", { id }),
   sendFileAbort: (id: string) => invoke<void>("send_file_abort", { id }),
+  /** Android only: a received file is reached through the URI the system gave back. */
+  openReceivedFile: (uri: string, mime: string) =>
+    invoke<void>("open_received_file", { uri, mime }),
+  shareReceivedFile: (uri: string, mime: string) =>
+    invoke<void>("share_received_file", { uri, mime }),
   copyToClipboard: (text: string) => invoke<void>("copy_to_clipboard", { text }),
   /** Current clipboard text ("" when empty or not text). On mobile only works while the app is in the foreground. */
   readClipboard: () => invoke<string>("read_clipboard"),

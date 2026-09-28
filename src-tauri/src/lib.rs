@@ -2,6 +2,7 @@ mod clipboard;
 mod commands;
 mod crypto;
 mod discovery;
+mod downloads;
 mod error;
 mod identity;
 mod pairing;
@@ -63,6 +64,9 @@ pub fn run() {
                 )
                 .build(),
         )
+        // Where a received file goes: the Downloads folder here, the system's
+        // own on Android. Registered everywhere so callers need no condition.
+        .plugin(downloads::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(tauri_plugin_opener::init());
@@ -184,6 +188,8 @@ pub fn run() {
             commands::send_file_chunk,
             commands::send_file_end,
             commands::send_file_abort,
+            commands::open_received_file,
+            commands::share_received_file,
             commands::copy_to_clipboard,
             commands::read_clipboard,
             commands::pair_by_address,

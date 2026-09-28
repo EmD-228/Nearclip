@@ -54,6 +54,8 @@ export interface FileMeta {
   mime: string;
   /** Where a received file was saved; absent for sent files */
   path?: string;
+  /** Android only: what opens or shares the saved file */
+  uri?: string;
 }
 
 export interface Settings {
