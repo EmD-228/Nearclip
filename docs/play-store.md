@@ -171,7 +171,7 @@ First release on Google Play.
 ## 9. Publishing from CI
 
 Once the first bundle has been uploaded by hand — Google requires that, the API
-cannot create an app — a `v*` tag can do the rest. The `play` job in
+cannot create an app — merging into `main` does the rest. The `play` job in
 `.github/workflows/build.yml` builds the bundle and sends it to a track.
 
 **What to set up, once:**
@@ -190,26 +190,31 @@ cannot create an app — a `v*` tag can do the rest. The `play` job in
 Without that secret the job builds the bundle and stops, so a fork never tries
 to publish.
 
-**What happens on a tag:** the bundle goes to the `internal` track, already
-released to its testers. To aim elsewhere, run the workflow by hand from the
-Actions tab and set `play_track` to `alpha`, `beta` or `production` — or to the
-name of a custom closed track, as the console spells it.
+**What happens on a merge into `main`:** the bundle goes to the `alpha` track,
+already released to its testers, and the installers go to a GitHub release
+tagged `v<version>`. To aim at another track, run the workflow by hand from the
+Actions tab on `main` and set `play_track` to `beta` or `production` — or to the
+name of a custom closed track, as the console spells it. A manual run only
+sends to Play; it leaves the GitHub release alone.
+
+**Every merge into `main` publishes.** There is no other condition, which is
+why `main` takes nothing but a finished version. `versionCode` is derived from
+the version in `tauri.conf.json`, and Play refuses a bundle whose code is not
+higher than the last — so a merge that forgets the bump turns the run red
+instead of shipping twice.
 
 **Release notes** come from `distribution/whatsnew/whatsnew-<locale>`, one short
 file per listing language. They are part of the commit, so rewrite them with
 each version; they are what testers read in Play, not the GitHub changelog.
 
-**`versionCode`** is derived from the version in `tauri.conf.json`, and Play
-refuses a bundle whose code is not higher than the last. So a Play release needs
-a version bump, the same one that drives the GitHub release.
+## 10. Releasing a new version
 
-## 10. After the first release
-
-- Bump the version in `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml` and
-  `package.json`, so `versionCode` grows.
-- Upload the new `.aab` to the same track, with release notes.
-- Keep the GitHub release going for the desktop builds and for people who prefer
-  the APK.
-- Automation is possible later: a service account plus a GitHub Action can push
-  the bundle to a Play track, and `.github/workflows/build.yml` already builds
-  and signs Android.
+1. On `staging`, bump the version in `src-tauri/tauri.conf.json`,
+   `src-tauri/Cargo.toml` and `package.json`, so `versionCode` grows. The
+   `check` job fails if the three disagree.
+2. Rewrite `distribution/whatsnew/whatsnew-en-US` and `whatsnew-fr-FR` for what
+   this version changes.
+3. Open a pull request from `staging` to `main` and merge it. CI builds, tags,
+   publishes the GitHub release and sends the bundle to Play.
+4. In the Play Console, check that the release reached the track. A rejected
+   bundle shows up there, not in GitHub Actions.
