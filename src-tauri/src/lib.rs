@@ -5,6 +5,7 @@ mod discovery;
 mod downloads;
 mod error;
 mod identity;
+mod notify;
 mod pairing;
 mod presence;
 mod protocol;
@@ -133,6 +134,7 @@ pub fn run() {
             discovery::set_enabled(&handle, settings.discovery);
             discovery::start_stale_sweep(&handle);
             presence::start(handle.clone());
+            notify::setup(&handle);
 
             #[cfg(desktop)]
             {
