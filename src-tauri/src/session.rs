@@ -7,7 +7,6 @@ use std::time::Duration;
 
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager};
-use tauri_plugin_notification::NotificationExt;
 use tokio::net::TcpStream;
 use tokio::task::JoinSet;
 
@@ -19,7 +18,7 @@ use crate::protocol::{
     Wire, FEATURE_FILES, MAX_TEXT_BYTES, PROTO_VERSION,
 };
 use crate::state::{forget_peer, now_ms, AppState, Direction, HistoryItem, PeerRecord, SendResult};
-use crate::{presence, transfer, transport};
+use crate::{notify, presence, transfer, transport};
 
 const SEND_TIMEOUT: Duration = Duration::from_secs(10);
 pub const IDLE_TIMEOUT: Duration = Duration::from_secs(30);
@@ -376,15 +375,6 @@ fn deliver_received(app: &AppHandle, state: &AppState, item: HistoryItem) {
             Some(file) => file.name.clone(),
             None => item.text.chars().take(120).collect(),
         };
-        let notification = app
-            .notification()
-            .builder()
-            .title(format!("Received from {}", item.peer_name))
-            .body(body);
-        // Android status bar icon (a drawable name) and its tint; the plugin
-        // falls back to the generic info icon otherwise. Desktop uses the app icon.
-        #[cfg(mobile)]
-        let notification = notification.icon("ic_notification").icon_color("#2563eb");
-        let _ = notification.show();
+        notify::arrived(app, &format!("Received from {}", item.peer_name), &body);
     }
 }
