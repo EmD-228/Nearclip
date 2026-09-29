@@ -1,29 +1,32 @@
-# Checks every push and pull request on Linux. Builds the installers on
-# pushes to main (artifacts hang off the run) and publishes a GitHub release
-# on v* tags. This is how the project gets Windows and Linux builds without
+# Checks every push and pull request on Linux, and builds the installers for
+# every push. This is how the project gets Windows and Linux builds without
 # those machines.
+#
+# Work lands on `staging`, which only builds. Anything that reaches `main` is
+# released: it is tagged `v<version>`, published as a GitHub release and sent
+# to Google Play, all on its own. So never merge into `main` without bumping
+# the version in src-tauri/tauri.conf.json — Play refuses a bundle whose
+# versionCode is not higher than the last, and the run turns red.
 #
 # macOS bundles are ad hoc signed, Windows and Linux ones unsigned. The
 # Android APK is signed only when the repository has the secrets
 # ANDROID_KEYSTORE_B64 (base64 of the .jks) and ANDROID_KEYSTORE_PASSWORD;
 # otherwise the job builds an unsigned APK as a compile check.
 #
-# A v* tag also sends the Android bundle to Google Play, when the secret
-# PLAY_SERVICE_ACCOUNT_JSON holds a service account key with release rights.
-# The release notes come from distribution/whatsnew, which has to be rewritten
-# for each version; see docs/play-store.md.
+# Play needs the secret PLAY_SERVICE_ACCOUNT_JSON, a service account key with
+# release rights. The release notes come from distribution/whatsnew, which has
+# to be rewritten for each version; see docs/play-store.md.
 name: Build
 
 on:
   push:
-    branches: [main]
-    tags: ["v*"]
+    branches: [main, staging]
   pull_request:
   workflow_dispatch:
     inputs:
       play_track:
-        description: "Google Play track for a tagged run (internal, alpha, beta, production)"
-        default: internal
+        description: "Google Play track (alpha, beta, production)"
+        default: alpha
 
 # Read-only token everywhere except the release job.
 permissions:
@@ -31,7 +34,8 @@ permissions:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+  # A release run is never cancelled halfway: Play would keep the upload.
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
   # The required status check for pull requests; keep the name stable.
@@ -51,6 +55,15 @@ jobs:
         with:
           workspaces: src-tauri
       - run: pnpm install --frozen-lockfile
+      # One version in three files. A merge to main releases whatever
+      # tauri.conf.json says, and nobody would notice a forgotten Cargo.toml
+      # until a user read the wrong number in an installed build.
+      - run: |
+          conf=$(jq -r .version src-tauri/tauri.conf.json)
+          pkg=$(jq -r .version package.json)
+          crate=$(grep -m1 '^version = ' src-tauri/Cargo.toml | cut -d'"' -f2)
+          echo "tauri.conf.json $conf, package.json $pkg, Cargo.toml $crate"
+          [ "$conf" = "$pkg" ] && [ "$conf" = "$crate" ]
       - run: pnpm check
       - run: cargo fmt --manifest-path src-tauri/Cargo.toml -- --check
       - run: cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
@@ -98,6 +111,8 @@ jobs:
   android:
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.name.outputs.tag }}
     env:
       NDK_VERSION: 28.2.13676358
       APK_DIR: src-tauri/gen/android/app/build/outputs/apk/universal/release
@@ -136,18 +151,23 @@ jobs:
       - run: pnpm tauri android build --apk --target aarch64
       # Play takes a bundle, not an APK, and splits it per device itself. Built
       # only for releases: it costs a second compile, for 32-bit phones too.
-      - if: startsWith(github.ref, 'refs/tags/v')
+      - if: github.ref == 'refs/heads/main'
         run: pnpm tauri android build --aab --target aarch64 --target armv7
-      - if: startsWith(github.ref, 'refs/tags/v')
+      - if: github.ref == 'refs/heads/main'
         uses: actions/upload-artifact@v4
         with:
           name: nearclip-android-bundle
           path: src-tauri/gen/android/app/build/outputs/bundle/*/*.aab
           if-no-files-found: error
-      # Same naming as the desktop installers; an unsigned build keeps its suffix.
-      - run: |
+      # Same naming as the desktop installers; an unsigned build keeps its
+      # suffix. The tag the release is published under comes from here too, so
+      # the installers and the tag can never disagree about the version.
+      - id: name
+        run: |
+          version=$(jq -r .version src-tauri/tauri.conf.json)
+          echo "tag=v$version" >> "$GITHUB_OUTPUT"
           for f in "$APK_DIR"/app-universal-release*.apk; do
-            mv "$f" "$APK_DIR/NearClip_$(jq -r .version src-tauri/tauri.conf.json)_android${f#*app-universal-release}"
+            mv "$f" "$APK_DIR/NearClip_${version}_android${f#*app-universal-release}"
           done
       - uses: actions/upload-artifact@v4
         with:
@@ -156,10 +176,10 @@ jobs:
           if-no-files-found: error
 
   # Sends the bundle to Google Play. Skipped, quietly, when the repository has
-  # no service account key, so a fork never tries to publish. The track defaults
-  # to the closed test; a manual run can aim at another one.
+  # no service account key, so a fork never tries to publish. The track is the
+  # closed test; running the workflow by hand on main aims at another one.
   play:
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: github.ref == 'refs/heads/main'
     needs: android
     runs-on: ubuntu-latest
     steps:
@@ -177,12 +197,15 @@ jobs:
           serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
           packageName: com.nearclip
           releaseFiles: bundle/*/*.aab
-          track: ${{ inputs.play_track || 'internal' }}
+          track: ${{ inputs.play_track || 'alpha' }}
           status: completed
           whatsNewDirectory: distribution/whatsnew
 
+  # Tags the merged commit and publishes the installers under that tag, so the
+  # version in tauri.conf.json is the only thing anyone has to bump. A manual
+  # run only moves a build between Play tracks, and leaves the release alone.
   release:
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     needs: [desktop, android]
     runs-on: ubuntu-latest
     permissions:
@@ -196,7 +219,8 @@ jobs:
       # `*_android.apk` leaves out an unsigned `*_android-unsigned.apk`.
       - uses: softprops/action-gh-release@v2
         with:
-          name: NearClip ${{ github.ref_name }}
+          tag_name: ${{ needs.android.outputs.tag }}
+          name: NearClip ${{ needs.android.outputs.tag }}
           generate_release_notes: true
           files: |
             dist/*.dmg

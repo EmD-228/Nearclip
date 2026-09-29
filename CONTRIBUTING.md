@@ -5,9 +5,13 @@ Thanks for helping. NearClip is maintained by one person, so the process is shor
 ## How changes get in
 
 1. Open an issue first for anything bigger than a small fix, so the approach is agreed before you spend time on it.
-2. Fork the repository and create a branch from `main`.
+2. Fork the repository and create a branch from `staging`.
 3. Make your change and run the checks listed in the README under "Tests and checks"; CI runs the same ones on every pull request.
-4. Open a pull request against `main` describing what changes and why, with a link to the issue. The maintainer reviews, may ask for changes, and merges with a squash commit.
+4. Open a pull request against `staging` describing what changes and why, with a link to the issue. The maintainer reviews, may ask for changes, and merges with a squash commit.
+
+`staging` is where changes wait; `main` is what has shipped. Merging into
+`main` publishes a release on its own, so only the maintainer does it — see
+[docs/play-store.md](docs/play-store.md#10-releasing-a-new-version).
 
 Keep pull requests focused: one change per PR, no unrelated formatting or dependency bumps.
 

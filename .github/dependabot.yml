@@ -1,9 +1,12 @@
 # Monthly, grouped: one pull request for routine bumps, one for majors, per ecosystem.
 # Only what ships in the binary; the Android scaffold and the actions are bumped by hand.
+# Bumps go to `staging` like every other change: a pull request against `main`
+# would be a release.
 version: 2
 updates:
   - package-ecosystem: cargo
     directory: /src-tauri
+    target-branch: staging
     schedule:
       interval: monthly
     open-pull-requests-limit: 2
